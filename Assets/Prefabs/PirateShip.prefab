@@ -11,9 +11,9 @@ GameObject:
   - component: {fileID: 6751792664421910178}
   - component: {fileID: 3492406557019419195}
   - component: {fileID: 6226782593712514174}
-  - component: {fileID: -558470074051561086}
+  - component: {fileID: 6716971645298428674}
   m_Layer: 0
-  m_Name: NavyShip
+  m_Name: PirateShip
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -29,7 +29,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: -1}
-  m_LocalScale: {x: 1000, y: 1000, z: 1}
+  m_LocalScale: {x: 15, y: 15, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -75,7 +75,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 512d36e4b3d22c04b8f8028c1eeea43e, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d4a19514bcc417543b0f56431a36b1d3, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 1
@@ -106,7 +106,7 @@ MonoBehaviour:
   stuckTicksBeforeRepath: 20
   showPathGizmos: 1
   logMovement: 1
---- !u!114 &-558470074051561086
+--- !u!114 &6716971645298428674
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -118,9 +118,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74bbf2c4b6e72454686aed3b1e1fc858, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  detectionRange: 4
+  detectionRange: 100
   scanInterval: 5
   captureRange: 0.3
   captureTime: 10
   fleeDistance: 4
-  showDetectionGizmos: 0
+  showDetectionGizmos: 1

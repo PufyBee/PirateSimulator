@@ -377,11 +377,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 807b2953941ec7e4d88bc012e8b1826c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cargoShipPrefab: {fileID: 310014084375218032, guid: c48b5320832ebb445b5b08ec53939b6b, type: 3}
-  cargoSpawnPoint: {x: -100, y: 0}
-  jitterSpawnY: 1
-  cargoDestination: {x: 4, y: 0}
-  cargoSpeedUnitsPerTick: 1
+  merchantShipPrefab: {fileID: 310014084375218032, guid: c48b5320832ebb445b5b08ec53939b6b, type: 3}
+  pirateShipPrefab: {fileID: 310014084375218032, guid: d7bc7fc954f0faf43bba851a89f80522, type: 3}
+  securityShipPrefab: {fileID: 310014084375218032, guid: 4207e4aec181b8e4dbc7819507b2b9a3, type: 3}
+  merchantSpawnPoint: {x: -60, y: -10}
+  merchantDestination: {x: 50, y: -2}
+  merchantSpeed: 1
+  pirateSpawnPoint: {x: 0, y: -10}
+  piratePatrolPoint: {x: 0, y: -1}
+  pirateSpeed: 0.8
+  securitySpawnPoint: {x: 60, y: -2}
+  securityPatrolPoint: {x: -2, y: -1}
+  securitySpeed: 1.5
+  useSpawnJitter: 1
+  spawnJitterAmount: 0.5
 --- !u!4 &239971861
 Transform:
   m_ObjectHideFlags: 0
@@ -560,12 +569,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 55bfcc990c8184c4abba6b74c6326393, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gridResolution: 200
+  gridResolution: 500
   shipSafetyBuffer: 0.3
   smoothPath: 0
   maxSearchNodes: 15000
   showDebugGrid: 1
-  logPathfinding: 1
+  logPathfinding: 0
 --- !u!4 &768946784
 Transform:
   m_ObjectHideFlags: 0
@@ -878,9 +887,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   statusText: {fileID: 0}
   tickText: {fileID: 0}
+  statsText: {fileID: 0}
   tickInterval: 0.25
   maxTicks: 0
   runSeed: 12345
+  merchantSpawnInterval: 50
+  pirateSpawnInterval: 80
+  securitySpawnInterval: 100
+  initialMerchants: 1
+  initialPirates: 1
+  initialSecurity: 1
   shipSpawner: {fileID: 239971860}
 --- !u!4 &1335423985
 Transform:
