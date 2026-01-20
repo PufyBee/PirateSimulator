@@ -400,14 +400,23 @@ public class Pathfinder : MonoBehaviour
     private bool HasLineOfSight(Vector2 from, Vector2 to)
     {
         float dist = Vector2.Distance(from, to);
-        int samples = Mathf.Max(3, Mathf.CeilToInt(dist / (cellWidth * 0.5f)));
+        
+        // More samples for longer distances - be very thorough
+        int samples = Mathf.Max(10, Mathf.CeilToInt(dist / 0.1f));
 
         for (int i = 1; i < samples; i++)
         {
             float t = i / (float)samples;
             Vector2 point = Vector2.Lerp(from, to, t);
 
-            // Use the same safety check as the grid
+            // Check the grid directly - is this cell walkable?
+            Vector2Int cell = WorldToGrid(point);
+            if (!IsWalkable(cell))
+            {
+                return false;
+            }
+            
+            // Also check with safety buffer
             if (!IsSafeForShip(point))
             {
                 return false;

@@ -560,12 +560,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 55bfcc990c8184c4abba6b74c6326393, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gridResolution: 150
-  shipSafetyBuffer: 4
+  gridResolution: 200
+  shipSafetyBuffer: 0.3
   smoothPath: 0
   maxSearchNodes: 15000
-  showDebugGrid: 0
-  logPathfinding: 0
+  showDebugGrid: 1
+  logPathfinding: 1
 --- !u!4 &768946784
 Transform:
   m_ObjectHideFlags: 0
@@ -1084,7 +1084,7 @@ MonoBehaviour:
   greenDominanceOffset: 0.03
   darkPixelThreshold: 0.12
   useCoastBuffer: 1
-  coastBufferWorld: 0.3
+  coastBufferWorld: 0.15
   debugLogging: 0
 --- !u!1 &2133794986
 GameObject:

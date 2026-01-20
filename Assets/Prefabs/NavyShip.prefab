@@ -98,10 +98,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   waypointReachDistance: 0.05
-  coastBuffer: 0.2
-  smoothVisuals: 1
+  coastBuffer: 2
+  smoothVisuals: 0
   visualSmoothSpeed: 12
   minMoveDistance: 0.001
   stuckTicksBeforeRepath: 20
-  showPathGizmos: 0
-  logMovement: 0
+  showPathGizmos: 1
+  logMovement: 1
