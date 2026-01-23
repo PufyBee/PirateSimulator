@@ -1,123 +1,152 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using TMPro;
 
+/// <summary>
+/// SIMULATION ENGINE - Clean Version
+/// 
+/// This script ONLY handles simulation logic.
+/// It does NOT touch any UI elements directly.
+/// UI scripts read from this using the public getter methods.
+/// 
+/// SETUP:
+/// 1. Add to a GameObject called "SimulationEngine"
+/// 2. Drag ShipSpawner reference in Inspector
+/// 3. That's it - UI scripts will connect to this
+/// </summary>
 public class SimulationEngine : MonoBehaviour
 {
-    [Header("UI")]
-    public TMP_Text statusText;
-    public TMP_Text tickText;
-    public TMP_Text statsText;  // NEW: for showing ship counts
+    [Header("=== REFERENCES ===")]
+    public ShipSpawner shipSpawner;
 
-    [Header("Run Settings")]
-    public float tickInterval = 0.25f;  // adjustable speed (Req 2.9)
-    public int maxTicks = 0;            // 0 = endless, otherwise timed (Req 2.4)
-    public int runSeed = 12345;         // determinism (Req 5.8 future)
+    [Header("=== RUN SETTINGS ===")]
+    [Tooltip("Seconds between simulation ticks")]
+    public float tickInterval = 0.25f;
+    
+    [Tooltip("Maximum ticks before auto-stop (0 = endless)")]
+    public int maxTicks = 0;
+    
+    [Tooltip("Random seed for reproducibility")]
+    public int runSeed = 12345;
 
-    [Header("Spawn Settings")]
-    [Tooltip("Ticks between merchant spawns (0 = only spawn at start)")]
-    public int merchantSpawnInterval = 50;
-    [Tooltip("Ticks between pirate spawns (0 = only spawn at start)")]
-    public int pirateSpawnInterval = 80;
-    [Tooltip("Ticks between security spawns (0 = only spawn at start)")]
-    public int securitySpawnInterval = 100;
-
-    [Header("Initial Ships")]
-    public int initialMerchants = 1;
+    [Header("=== SPAWN SETTINGS ===")]
+    public int initialMerchants = 2;
     public int initialPirates = 1;
     public int initialSecurity = 1;
 
-    [Header("References")]
-    public ShipSpawner shipSpawner;
+    [Tooltip("Ticks between merchant spawns (0 = disabled)")]
+    public int merchantSpawnInterval = 50;
+    
+    [Tooltip("Ticks between pirate spawns (0 = disabled)")]
+    public int pirateSpawnInterval = 80;
+    
+    [Tooltip("Ticks between security spawns (0 = disabled)")]
+    public int securitySpawnInterval = 100;
 
-    // runtime
-    private readonly List<ShipController> ships = new();
-    private Coroutine loop;
-    private bool isRunning;
-    private bool isPaused;
-    private int tickCount;
+    // ===== PRIVATE STATE =====
+    private List<ShipController> ships = new List<ShipController>();
+    private Coroutine tickLoop;
     private System.Random rng;
+
+    // State flags
+    private bool isRunning = false;
+    private bool isPaused = false;
+    private int tickCount = 0;
 
     // Spawn timers
     private int ticksSinceLastMerchant = 0;
     private int ticksSinceLastPirate = 0;
     private int ticksSinceLastSecurity = 0;
 
-    // Statistics (Req 3.1)
-    private int totalMerchantsSpawned = 0;
-    private int totalPiratesSpawned = 0;
-    private int totalSecuritySpawned = 0;
+    // Statistics
     private int merchantsExited = 0;
     private int merchantsCaptured = 0;
     private int piratesDefeated = 0;
+    private HashSet<string> countedShipIds = new HashSet<string>();
 
-    // ---- Public API: wire buttons to these ----
+    // ===== PUBLIC CONTROL METHODS =====
+    // UI scripts call these
 
-    // Start or Resume (Req 1.4)
+    /// <summary>
+    /// Start or resume the simulation
+    /// </summary>
     public void StartRun()
     {
+        // Don't restart if already running
         if (isRunning && !isPaused) return;
 
-        if (rng == null) rng = new System.Random(runSeed);
+        // Initialize RNG if needed
+        if (rng == null)
+            rng = new System.Random(runSeed);
 
-        // Spawn initial ships if none exist yet
-        if (ships.Count == 0 && shipSpawner != null)
-        {
+        // Spawn initial ships if this is a fresh start
+        if (ships.Count == 0)
             SpawnInitialShips();
-        }
 
         isRunning = true;
         isPaused = false;
-        SetStatus("RUNNING");
-        StartLoop();
-        RefreshUI();
+
+        // Start the tick loop
+        if (tickLoop == null)
+            tickLoop = StartCoroutine(TickLoop());
+
+        Debug.Log("Simulation STARTED");
     }
 
-    // Pause (Req 1.4)
+    /// <summary>
+    /// Pause the simulation
+    /// </summary>
     public void PauseRun()
     {
         if (!isRunning) return;
+        
         isPaused = true;
-        SetStatus("PAUSED");
-        StopLoop();
-        RefreshUI();
+        StopTickLoop();
+        
+        Debug.Log("Simulation PAUSED");
     }
 
-    // Step (Req 2.8)
+    /// <summary>
+    /// Advance one tick (for step-through debugging)
+    /// </summary>
     public void StepOnce()
     {
-        // stepping should work even if paused/not running
-        if (rng == null) rng = new System.Random(runSeed);
+        if (rng == null)
+            rng = new System.Random(runSeed);
 
-        if (ships.Count == 0 && shipSpawner != null)
-        {
+        if (ships.Count == 0)
             SpawnInitialShips();
-        }
 
-        AdvanceTick();
-        SetStatus("STEP");
-        RefreshUI();
+        DoOneTick();
+        
+        Debug.Log($"Simulation STEP - Tick {tickCount}");
     }
 
-    // End (Req 1.10)
+    /// <summary>
+    /// Stop the simulation completely
+    /// </summary>
     public void EndRun()
     {
-        StopLoop();
+        StopTickLoop();
         isRunning = false;
         isPaused = false;
-        SetStatus("ENDED");
-        RefreshUI();
+        
+        Debug.Log("Simulation ENDED");
         PrintFinalStats();
     }
 
-    // Reset / New Run workflow (Req 2.10)
+    /// <summary>
+    /// Reset everything for a new run
+    /// </summary>
     public void ResetToNewRun()
     {
-        StopLoop();
+        StopTickLoop();
+        
+        // Reset state
         isRunning = false;
         isPaused = false;
         tickCount = 0;
+        rng = null;
 
         // Reset spawn timers
         ticksSinceLastMerchant = 0;
@@ -125,155 +154,87 @@ public class SimulationEngine : MonoBehaviour
         ticksSinceLastSecurity = 0;
 
         // Reset statistics
-        totalMerchantsSpawned = 0;
-        totalPiratesSpawned = 0;
-        totalSecuritySpawned = 0;
         merchantsExited = 0;
         merchantsCaptured = 0;
         piratesDefeated = 0;
         countedShipIds.Clear();
 
-        // Destroy ships
-        foreach (var s in ships)
-            if (s != null) Destroy(s.gameObject);
+        // Destroy all ships
+        foreach (var ship in ships)
+        {
+            if (ship != null)
+                Destroy(ship.gameObject);
+        }
         ships.Clear();
 
-        // Also clear from spawner if it tracks them
+        // Clear spawner tracking too
         if (shipSpawner != null)
             shipSpawner.ClearAllShips();
 
-        rng = null;
-        SetStatus("SETUP");
-        RefreshUI();
+        Debug.Log("Simulation RESET");
     }
 
-    // Optional: speed slider hook (Req 2.9)
+    /// <summary>
+    /// Change simulation speed
+    /// </summary>
     public void SetTickInterval(float seconds)
     {
         tickInterval = Mathf.Max(0.01f, seconds);
+        
+        // Restart loop if running to apply new speed
         if (isRunning && !isPaused)
         {
-            StopLoop();
-            StartLoop();
+            StopTickLoop();
+            tickLoop = StartCoroutine(TickLoop());
         }
     }
 
-    // Optional: allow UI input to set max ticks (0=endless)
-    public void SetMaxTicks(int ticks)
-    {
-        maxTicks = Mathf.Max(0, ticks);
-        RefreshUI();
-    }
+    // ===== PUBLIC GETTERS =====
+    // UI scripts read these to display info
 
-    public void SetSeed(int seed)
-    {
-        runSeed = seed;
-        // don't recreate rng mid-run; apply on next Reset/Start
-    }
+    public bool IsRunning() => isRunning;
+    public bool IsPaused() => isPaused;
+    public int GetTickCount() => tickCount;
+    public int GetMerchantsExited() => merchantsExited;
+    public int GetMerchantsCaptured() => merchantsCaptured;
+    public int GetPiratesDefeated() => piratesDefeated;
+    public int GetActiveShipCount() => ships.Count;
 
-    // ---- Spawning ----
+    // ===== PRIVATE METHODS =====
 
     private void SpawnInitialShips()
     {
-        // Spawn initial merchants
+        if (shipSpawner == null)
+        {
+            Debug.LogError("SimulationEngine: No ShipSpawner assigned!");
+            return;
+        }
+
         for (int i = 0; i < initialMerchants; i++)
-        {
-            SpawnMerchant();
-        }
+            SpawnShip(ShipType.Cargo);
 
-        // Spawn initial pirates
         for (int i = 0; i < initialPirates; i++)
-        {
-            SpawnPirate();
-        }
+            SpawnShip(ShipType.Pirate);
 
-        // Spawn initial security
         for (int i = 0; i < initialSecurity; i++)
-        {
-            SpawnSecurity();
-        }
+            SpawnShip(ShipType.Security);
+
+        Debug.Log($"Spawned initial ships: {initialMerchants} merchants, {initialPirates} pirates, {initialSecurity} security");
     }
 
-    private void SpawnMerchant()
+    private void SpawnShip(ShipType type)
     {
-        var ship = shipSpawner.SpawnShip(ShipType.Cargo, rng);
+        var ship = shipSpawner.SpawnShip(type, rng);
         if (ship != null)
-        {
             ships.Add(ship);
-            totalMerchantsSpawned++;
-        }
     }
 
-    private void SpawnPirate()
+    private void StopTickLoop()
     {
-        var ship = shipSpawner.SpawnShip(ShipType.Pirate, rng);
-        if (ship != null)
+        if (tickLoop != null)
         {
-            ships.Add(ship);
-            totalPiratesSpawned++;
-        }
-    }
-
-    private void SpawnSecurity()
-    {
-        var ship = shipSpawner.SpawnShip(ShipType.Security, rng);
-        if (ship != null)
-        {
-            ships.Add(ship);
-            totalSecuritySpawned++;
-        }
-    }
-
-    private void CheckPeriodicSpawns()
-    {
-        // Merchant spawning
-        if (merchantSpawnInterval > 0)
-        {
-            ticksSinceLastMerchant++;
-            if (ticksSinceLastMerchant >= merchantSpawnInterval)
-            {
-                SpawnMerchant();
-                ticksSinceLastMerchant = 0;
-            }
-        }
-
-        // Pirate spawning
-        if (pirateSpawnInterval > 0)
-        {
-            ticksSinceLastPirate++;
-            if (ticksSinceLastPirate >= pirateSpawnInterval)
-            {
-                SpawnPirate();
-                ticksSinceLastPirate = 0;
-            }
-        }
-
-        // Security spawning
-        if (securitySpawnInterval > 0)
-        {
-            ticksSinceLastSecurity++;
-            if (ticksSinceLastSecurity >= securitySpawnInterval)
-            {
-                SpawnSecurity();
-                ticksSinceLastSecurity = 0;
-            }
-        }
-    }
-
-    // ---- loop ----
-
-    private void StartLoop()
-    {
-        if (loop != null) return;
-        loop = StartCoroutine(TickLoop());
-    }
-
-    private void StopLoop()
-    {
-        if (loop != null)
-        {
-            StopCoroutine(loop);
-            loop = null;
+            StopCoroutine(tickLoop);
+            tickLoop = null;
         }
     }
 
@@ -281,46 +242,41 @@ public class SimulationEngine : MonoBehaviour
     {
         while (isRunning && !isPaused)
         {
-            AdvanceTick();
-            RefreshUI();
+            DoOneTick();
 
-            // If timed mode: stop after maxTicks
+            // Check for max ticks
             if (maxTicks > 0 && tickCount >= maxTicks)
             {
-                SetStatus("COMPLETED");
+                Debug.Log("Simulation COMPLETED - max ticks reached");
                 isRunning = false;
-                isPaused = false;
                 PrintFinalStats();
-                loop = null;
                 yield break;
             }
 
             yield return new WaitForSeconds(tickInterval);
         }
 
-        loop = null;
+        tickLoop = null;
     }
 
-    private void AdvanceTick()
+    private void DoOneTick()
     {
         tickCount++;
 
-        // Check if we should spawn new ships
+        // Periodic spawning
         CheckPeriodicSpawns();
 
-        // First: Run behavior AI for all ships (detection, chasing, fleeing)
+        // Run behavior AI for all ships
         foreach (var ship in ships)
         {
             if (ship == null) continue;
 
             ShipBehavior behavior = ship.GetComponent<ShipBehavior>();
             if (behavior != null)
-            {
                 behavior.OnBehaviorTick(ships);
-            }
         }
 
-        // Second: Tick all ships (movement)
+        // Move all ships
         for (int i = ships.Count - 1; i >= 0; i--)
         {
             var ship = ships[i];
@@ -332,107 +288,82 @@ public class SimulationEngine : MonoBehaviour
 
             ship.OnTick();
 
-            // Handle ships based on their state
+            // Handle state changes
             if (ship.Data != null)
             {
-                switch (ship.Data.state)
-                {
-                    case ShipState.Exited:
-                        if (ship.Data.type == ShipType.Cargo)
-                            merchantsExited++;
-                        Destroy(ship.gameObject);
-                        ships.RemoveAt(i);
-                        break;
-
-                    case ShipState.Captured:
-                        // Only count once (check if not already counted)
-                        if (ship.Data.type == ShipType.Cargo && !IsShipAlreadyCounted(ship))
-                        {
-                            merchantsCaptured++;
-                            MarkShipCounted(ship);
-                        }
-                        // Don't destroy - captured ships might be rescued
-                        break;
-
-                    case ShipState.Sunk:
-                        if (ship.Data.type == ShipType.Pirate)
-                            piratesDefeated++;
-                        Destroy(ship.gameObject);
-                        ships.RemoveAt(i);
-                        break;
-                }
+                HandleShipState(ship, i);
             }
         }
     }
 
-    // Track which ships have been counted to avoid double-counting
-    private HashSet<string> countedShipIds = new HashSet<string>();
-
-    private bool IsShipAlreadyCounted(ShipController ship)
+    private void HandleShipState(ShipController ship, int index)
     {
-        return countedShipIds.Contains(ship.Data.shipId);
-    }
-
-    private void MarkShipCounted(ShipController ship)
-    {
-        countedShipIds.Add(ship.Data.shipId);
-    }
-
-    private void RefreshUI()
-    {
-        if (tickText != null)
+        switch (ship.Data.state)
         {
-            string mode = (maxTicks > 0) ? $"{tickCount} / {maxTicks}" : $"{tickCount} (endless)";
-            tickText.text = $"Tick: {mode}";
-        }
+            case ShipState.Exited:
+                if (ship.Data.type == ShipType.Cargo)
+                    merchantsExited++;
+                Destroy(ship.gameObject);
+                ships.RemoveAt(index);
+                break;
 
-        if (statsText != null)
-        {
-            int activeMerchants = CountShipsOfType(ShipType.Cargo);
-            int activePirates = CountShipsOfType(ShipType.Pirate);
-            int activeSecurity = CountShipsOfType(ShipType.Security);
+            case ShipState.Captured:
+                if (ship.Data.type == ShipType.Cargo && !countedShipIds.Contains(ship.Data.shipId))
+                {
+                    merchantsCaptured++;
+                    countedShipIds.Add(ship.Data.shipId);
+                }
+                break;
 
-            statsText.text = $"Merchants: {activeMerchants} | Pirates: {activePirates} | Security: {activeSecurity}\n" +
-                           $"Exited: {merchantsExited} | Captured: {merchantsCaptured} | Pirates Defeated: {piratesDefeated}";
+            case ShipState.Sunk:
+                if (ship.Data.type == ShipType.Pirate)
+                    piratesDefeated++;
+                Destroy(ship.gameObject);
+                ships.RemoveAt(index);
+                break;
         }
     }
 
-    private int CountShipsOfType(ShipType type)
+    private void CheckPeriodicSpawns()
     {
-        int count = 0;
-        foreach (var ship in ships)
+        if (merchantSpawnInterval > 0)
         {
-            if (ship != null && ship.Data != null && ship.Data.type == type)
-                count++;
+            ticksSinceLastMerchant++;
+            if (ticksSinceLastMerchant >= merchantSpawnInterval)
+            {
+                SpawnShip(ShipType.Cargo);
+                ticksSinceLastMerchant = 0;
+            }
         }
-        return count;
-    }
 
-    private void SetStatus(string msg)
-    {
-        if (statusText != null) statusText.text = msg;
-        Debug.Log(msg);
+        if (pirateSpawnInterval > 0)
+        {
+            ticksSinceLastPirate++;
+            if (ticksSinceLastPirate >= pirateSpawnInterval)
+            {
+                SpawnShip(ShipType.Pirate);
+                ticksSinceLastPirate = 0;
+            }
+        }
+
+        if (securitySpawnInterval > 0)
+        {
+            ticksSinceLastSecurity++;
+            if (ticksSinceLastSecurity >= securitySpawnInterval)
+            {
+                SpawnShip(ShipType.Security);
+                ticksSinceLastSecurity = 0;
+            }
+        }
     }
 
     private void PrintFinalStats()
     {
-        Debug.Log("=== SIMULATION RESULTS ===");
+        Debug.Log("===== FINAL STATISTICS =====");
         Debug.Log($"Total Ticks: {tickCount}");
-        Debug.Log($"Merchants Spawned: {totalMerchantsSpawned}");
-        Debug.Log($"Merchants Exited Safely: {merchantsExited}");
+        Debug.Log($"Merchants Escaped: {merchantsExited}");
         Debug.Log($"Merchants Captured: {merchantsCaptured}");
-        Debug.Log($"Pirates Spawned: {totalPiratesSpawned}");
         Debug.Log($"Pirates Defeated: {piratesDefeated}");
-        Debug.Log($"Security Spawned: {totalSecuritySpawned}");
-        Debug.Log("==========================");
+        Debug.Log("============================");
     }
-
-    // ---- Public Getters for UI/Statistics ----
-
-    public int GetTickCount() => tickCount;
-    public int GetMerchantsExited() => merchantsExited;
-    public int GetMerchantsCaptured() => merchantsCaptured;
-    public int GetPiratesDefeated() => piratesDefeated;
-    public bool IsRunning() => isRunning;
-    public bool IsPaused() => isPaused;
 }
