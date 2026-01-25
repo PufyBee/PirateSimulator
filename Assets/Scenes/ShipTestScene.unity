@@ -1680,6 +1680,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 887750609}
+  - component: {fileID: 887750610}
   m_Layer: 0
   m_Name: EnviormentManager
   m_TagString: Untagged
@@ -1702,6 +1703,25 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &887750610
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 887750608}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62a2e49bbcaee0b4882de314f703a797, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  timeOfDay: 0
+  weather: 0
+  detectionMultiplier: 1
+  speedMultiplier: 1
+  merchantSpawnMultiplier: 1
+  pirateSpawnMultiplier: 1
+  securitySpawnMultiplier: 1
 --- !u!114 &895598881 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 499676816236062849, guid: 23e7674c123493a4da8e01a1ac528019, type: 3}
@@ -2133,6 +2153,65 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 7831094824483784091, guid: 23e7674c123493a4da8e01a1ac528019, type: 3}
   m_PrefabInstance: {fileID: 1264876953}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1187766586
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1187766588}
+  - component: {fileID: 1187766587}
+  m_Layer: 0
+  m_Name: EnviormentVisualOverlay
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1187766587
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1187766586}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 957cf2d7b5e45ed4fa4d655689e88186, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  autoCreateOverlay: 1
+  overlayImage: {fileID: 0}
+  morningTint: {r: 1, g: 0.9, b: 0.7, a: 0.15}
+  noonTint: {r: 1, g: 1, b: 0.9, a: 0.05}
+  eveningTint: {r: 1, g: 0.6, b: 0.4, a: 0.25}
+  nightTint: {r: 0.2, g: 0.2, b: 0.4, a: 0.5}
+  clearTint: {r: 1, g: 1, b: 1, a: 0}
+  foggyTint: {r: 0.8, g: 0.8, b: 0.85, a: 0.4}
+  stormyTint: {r: 0.3, g: 0.3, b: 0.35, a: 0.45}
+  calmTint: {r: 1, g: 0.95, b: 0.8, a: 0.1}
+  transitionSpeed: 2
+  enableRainEffect: 1
+  rainParticlePrefab: {fileID: 0}
+  enableNightVignette: 1
+  vignetteImage: {fileID: 0}
+--- !u!4 &1187766588
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1187766586}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -92.78259, y: 35.207508, z: -1.7449231}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1251699474
 GameObject:
   m_ObjectHideFlags: 0
@@ -5042,3 +5121,4 @@ SceneRoots:
   - {fileID: 1264876953}
   - {fileID: 1975225898}
   - {fileID: 887750609}
+  - {fileID: 1187766588}

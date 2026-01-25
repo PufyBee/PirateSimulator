@@ -47,6 +47,13 @@ public class EnvironmentSettings : MonoBehaviour
     {
         timeOfDay = (TimeOfDay)index;
         CalculateMultipliers();
+        
+        // Update visual overlay
+        if (EnvironmentVisualOverlay.Instance != null)
+        {
+            EnvironmentVisualOverlay.Instance.SetTimeOfDay(timeOfDay);
+        }
+        
         Debug.Log($"Time of Day set to: {timeOfDay}");
     }
 
@@ -57,6 +64,13 @@ public class EnvironmentSettings : MonoBehaviour
     {
         weather = (Weather)index;
         CalculateMultipliers();
+        
+        // Update visual overlay
+        if (EnvironmentVisualOverlay.Instance != null)
+        {
+            EnvironmentVisualOverlay.Instance.SetWeather(weather);
+        }
+        
         Debug.Log($"Weather set to: {weather}");
     }
 
