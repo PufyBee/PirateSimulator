@@ -31,6 +31,7 @@ public class ShipLight : MonoBehaviour
     private bool isLightOn = false;
     private bool isInitialized = false;
     private float flickerOffset;
+    private float scaleCompensation = 1f;
     private Color baseColor;
 
     void Start()
@@ -79,6 +80,10 @@ public class ShipLight : MonoBehaviour
 
     void CreateGlowSprites()
     {
+        // Get parent scale to compensate
+        Vector3 parentScale = transform.lossyScale;
+        float scaleCompensation = 1f / Mathf.Max(parentScale.x, parentScale.y, 0.001f);
+        
         // Outer glow
         glowObject = new GameObject("ShipGlow");
         glowObject.transform.SetParent(transform);
@@ -88,7 +93,9 @@ public class ShipLight : MonoBehaviour
         glowRenderer.sprite = CreateCircleSprite(64);
         glowRenderer.sortingOrder = 10;
         glowRenderer.color = Color.clear;  // Start invisible
-        glowObject.transform.localScale = Vector3.one * glowSize;
+        
+        // Apply size WITH scale compensation so it's consistent regardless of ship size
+        glowObject.transform.localScale = Vector3.one * glowSize * scaleCompensation;
         glowObject.SetActive(false);
 
         // Inner core
@@ -100,8 +107,13 @@ public class ShipLight : MonoBehaviour
         innerGlowRenderer.sprite = CreateCircleSprite(32);
         innerGlowRenderer.sortingOrder = 11;
         innerGlowRenderer.color = Color.clear;  // Start invisible
-        innerGlowObject.transform.localScale = Vector3.one * innerGlowSize;
+        
+        // Apply size WITH scale compensation
+        innerGlowObject.transform.localScale = Vector3.one * innerGlowSize * scaleCompensation;
         innerGlowObject.SetActive(false);
+        
+        // Store compensation for flicker
+        this.scaleCompensation = scaleCompensation;
     }
 
     Sprite CreateCircleSprite(int size)
