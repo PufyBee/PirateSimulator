@@ -24,10 +24,16 @@ public class Pathfinder : MonoBehaviour
     [Header("Ship Safety Buffer")]
     [Tooltip("How far from land should paths stay? Increase if ships get stuck near coastlines.")]
     public float shipSafetyBuffer = 0.5f;
+    
+    [Header("Coast Avoidance")]
+    [Tooltip("Prefer paths in open water vs near coasts. 0 = no preference, 1+ = strongly prefer open water.")]
+    public float coastAvoidanceWeight = 1.5f;
 
     [Header("Path Smoothing")]
     [Tooltip("Remove unnecessary waypoints for smoother paths")]
     public bool smoothPath = true;
+    [Tooltip("Maximum waypoints to skip when smoothing (lower = safer paths)")]
+    public int maxSmoothSkip = 5;
 
     [Header("Performance")]
     [Tooltip("Max nodes to search before giving up (prevents freezing)")]
@@ -39,6 +45,7 @@ public class Pathfinder : MonoBehaviour
 
     // Internal grid
     private bool[,] walkable;
+    private float[,] distanceToLand;  // For coast avoidance weighting
     private int gridWidth;
     private int gridHeight;
     private float cellWidth;
@@ -122,6 +129,12 @@ public class Pathfinder : MonoBehaviour
         // Restore original settings
         MapColorSampler.Instance.useCoastBuffer = originalBuffer;
 
+        // Build distance-to-land grid for coast avoidance
+        if (coastAvoidanceWeight > 0)
+        {
+            BuildDistanceToLandGrid();
+        }
+
         isInitialized = true;
         Debug.Log($"Pathfinder: Grid built - {gridWidth}x{gridHeight} ({waterCount} water, {landCount} land cells) with {shipSafetyBuffer} buffer");
     }
@@ -156,6 +169,75 @@ public class Pathfinder : MonoBehaviour
         if (!MapColorSampler.Instance.IsWater(worldPos + new Vector2(-diagBuffer, -diagBuffer))) return false;
 
         return true;
+    }
+
+    /// <summary>
+    /// Build a grid showing distance to nearest land for coast avoidance.
+    /// Cells near land have low values, cells in open water have high values.
+    /// </summary>
+    private void BuildDistanceToLandGrid()
+    {
+        distanceToLand = new float[gridWidth, gridHeight];
+        
+        // Initialize: land = 0, water = max
+        for (int x = 0; x < gridWidth; x++)
+        {
+            for (int y = 0; y < gridHeight; y++)
+            {
+                distanceToLand[x, y] = walkable[x, y] ? 999f : 0f;
+            }
+        }
+
+        // Multi-pass distance propagation (simple but effective)
+        int passes = Mathf.Min(20, Mathf.Max(gridWidth, gridHeight) / 4);
+        
+        for (int pass = 0; pass < passes; pass++)
+        {
+            for (int x = 1; x < gridWidth - 1; x++)
+            {
+                for (int y = 1; y < gridHeight - 1; y++)
+                {
+                    if (!walkable[x, y]) continue;
+                    
+                    // Check neighbors and take minimum + 1
+                    float minDist = distanceToLand[x, y];
+                    
+                    minDist = Mathf.Min(minDist, distanceToLand[x-1, y] + 1f);
+                    minDist = Mathf.Min(minDist, distanceToLand[x+1, y] + 1f);
+                    minDist = Mathf.Min(minDist, distanceToLand[x, y-1] + 1f);
+                    minDist = Mathf.Min(minDist, distanceToLand[x, y+1] + 1f);
+                    minDist = Mathf.Min(minDist, distanceToLand[x-1, y-1] + 1.414f);
+                    minDist = Mathf.Min(minDist, distanceToLand[x+1, y-1] + 1.414f);
+                    minDist = Mathf.Min(minDist, distanceToLand[x-1, y+1] + 1.414f);
+                    minDist = Mathf.Min(minDist, distanceToLand[x+1, y+1] + 1.414f);
+                    
+                    distanceToLand[x, y] = minDist;
+                }
+            }
+        }
+        
+        Debug.Log("Pathfinder: Distance-to-land grid built for coast avoidance");
+    }
+
+    /// <summary>
+    /// Get the movement cost for a cell. Higher near coasts.
+    /// </summary>
+    private float GetMovementCost(Vector2Int cell, float baseMoveCost)
+    {
+        if (coastAvoidanceWeight <= 0 || distanceToLand == null)
+            return baseMoveCost;
+        
+        float dist = distanceToLand[cell.x, cell.y];
+        
+        // Cells near land (low distance) get higher cost
+        // Invert: close to land = high penalty
+        float maxDist = 10f;  // Cap the benefit of being far from land
+        float normalizedDist = Mathf.Clamp01(dist / maxDist);
+        
+        // Cost multiplier: near land = up to 2x cost, open water = 1x cost
+        float costMultiplier = 1f + (1f - normalizedDist) * coastAvoidanceWeight;
+        
+        return baseMoveCost * costMultiplier;
     }
 
     /// <summary>
@@ -284,7 +366,8 @@ public class Pathfinder : MonoBehaviour
                             continue;
                     }
 
-                    float moveCost = (dx != 0 && dy != 0) ? 1.414f : 1f;
+                    float baseMoveCost = (dx != 0 && dy != 0) ? 1.414f : 1f;
+                    float moveCost = GetMovementCost(neighbor, baseMoveCost);
                     float tentativeG = gScore[current] + moveCost;
 
                     if (!gScore.ContainsKey(neighbor) || tentativeG < gScore[neighbor])
@@ -379,14 +462,23 @@ public class Pathfinder : MonoBehaviour
 
         while (current < path.Count - 1)
         {
+            // Start by looking just one step ahead
             int farthest = current + 1;
 
-            // Find farthest point with clear line of sight
-            for (int i = current + 2; i < path.Count; i++)
+            // Try to find farthest point with VERIFIED clear line of sight
+            // But don't skip too many at once
+            int maxLookAhead = Mathf.Min(current + maxSmoothSkip + 1, path.Count);
+            
+            for (int i = current + 2; i < maxLookAhead; i++)
             {
                 if (HasLineOfSight(path[current], path[i]))
                 {
                     farthest = i;
+                }
+                else
+                {
+                    // Once we hit an obstacle, stop looking further
+                    break;
                 }
             }
 
@@ -401,10 +493,11 @@ public class Pathfinder : MonoBehaviour
     {
         float dist = Vector2.Distance(from, to);
         
-        // More samples for longer distances - be very thorough
-        int samples = Mathf.Max(10, Mathf.CeilToInt(dist / 0.1f));
+        // Very thorough checking - sample every half cell width
+        float sampleDist = Mathf.Min(cellWidth, cellHeight) * 0.5f;
+        int samples = Mathf.Max(20, Mathf.CeilToInt(dist / sampleDist));
 
-        for (int i = 1; i < samples; i++)
+        for (int i = 0; i <= samples; i++)
         {
             float t = i / (float)samples;
             Vector2 point = Vector2.Lerp(from, to, t);
@@ -412,12 +505,6 @@ public class Pathfinder : MonoBehaviour
             // Check the grid directly - is this cell walkable?
             Vector2Int cell = WorldToGrid(point);
             if (!IsWalkable(cell))
-            {
-                return false;
-            }
-            
-            // Also check with safety buffer
-            if (!IsSafeForShip(point))
             {
                 return false;
             }

@@ -12,6 +12,9 @@ GameObject:
   - component: {fileID: 3492406557019419195}
   - component: {fileID: 6226782593712514174}
   - component: {fileID: 6341143047312627907}
+  - component: {fileID: -2335344909754893756}
+  - component: {fileID: 2077383096241064980}
+  - component: {fileID: 2865053731789697374}
   m_Layer: 0
   m_Name: MerchantShip
   m_TagString: Untagged
@@ -119,8 +122,83 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   detectionRange: 0.3
-  scanInterval: 5
   captureRange: 0.3
   captureTime: 10
   fleeDistance: 4
-  showDetectionGizmos: 0
+  fleeSpeedBoost: 1.3
+  enableVisualEffects: 1
+  explosionPrefab: {fileID: 0}
+  captureEffectPrefab: {fileID: 0}
+  showGizmos: 1
+  enableLogs: 0
+--- !u!114 &-2335344909754893756
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 310014084375218032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59f09a55f35cfbb45aa23e8ebd35fbe7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  merchantLightColor: {r: 1, g: 0.9, b: 0.5, a: 0.8}
+  pirateLightColor: {r: 1, g: 0.3, b: 0.2, a: 0.8}
+  securityLightColor: {r: 0.5, g: 0.7, b: 1, a: 0.8}
+  glowSize: 20
+  innerGlowSize: 10
+  enableFlicker: 1
+  flickerSpeed: 5
+  flickerAmount: 0.3
+--- !u!114 &2077383096241064980
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 310014084375218032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f9c0315c55f7ae4b852588d4ffbe14e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  shipName: 
+  originCountry: 
+  destinationCountry: 
+  fullTitle: 
+--- !u!58 &2865053731789697374
+CircleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 310014084375218032}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_UsedByComposite: 0
+  m_Offset: {x: 0, y: 0}
+  serializedVersion: 2
+  m_Radius: 2

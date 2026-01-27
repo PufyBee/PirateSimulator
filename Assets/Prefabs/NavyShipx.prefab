@@ -13,10 +13,10 @@ GameObject:
   - component: {fileID: 6226782593712514174}
   - component: {fileID: 6716971645298428674}
   - component: {fileID: -3462289627754624782}
-  - component: {fileID: -6000842171027322986}
-  - component: {fileID: -2437461989894956972}
+  - component: {fileID: -2128868419300466334}
+  - component: {fileID: -6811754987730491480}
   m_Layer: 0
-  m_Name: PirateShip
+  m_Name: NavyShipx
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -32,7 +32,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: -1}
-  m_LocalScale: {x: 15, y: 15, z: 1}
+  m_LocalScale: {x: 1000, y: 1000, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -78,7 +78,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: d4a19514bcc417543b0f56431a36b1d3, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 512d36e4b3d22c04b8f8028c1eeea43e, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 1
@@ -151,7 +151,7 @@ MonoBehaviour:
   enableFlicker: 1
   flickerSpeed: 5
   flickerAmount: 0.3
---- !u!114 &-6000842171027322986
+--- !u!114 &-2128868419300466334
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -167,7 +167,7 @@ MonoBehaviour:
   originCountry: 
   destinationCountry: 
   fullTitle: 
---- !u!58 &-2437461989894956972
+--- !u!58 &-6811754987730491480
 CircleCollider2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

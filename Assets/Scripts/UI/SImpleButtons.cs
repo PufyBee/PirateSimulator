@@ -3,10 +3,8 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// Simple Button Controller - Fixed Version
-/// - Pause toggles on/off
-/// - Reset returns to setup screen
-/// - Reads input fields and applies to SimulationEngine
+/// UI Controller with LiveResultsPanel integration
+/// Updated with confirmation dialog for reset (Req 1.9)
 /// </summary>
 public class SimpleButtons : MonoBehaviour
 {
@@ -17,23 +15,34 @@ public class SimpleButtons : MonoBehaviour
     public Button resetBtn;
     public Button stepBtn;
 
-    [Header("=== BUTTON TEXT (to change Pause/Resume) ===")]
+    [Header("=== BUTTON TEXT ===")]
     public TMP_Text pauseButtonText;
 
     [Header("=== REFERENCES ===")]
     public SimulationEngine engine;
-    public GameObject setupPanel;      // The setup screen to show on reset
-    public GameObject sidebarPanel;    // The sidebar to hide on reset
+    public GameObject setupPanel;
+    public GameObject sidebarPanel;
 
-    [Header("=== INPUT FIELDS (from Setup Panel) ===")]
+    [Header("=== LIVE RESULTS ===")]
+    public LiveResultsPanel liveResultsPanel;
+
+    [Header("=== SHIP COUNT INPUTS ===")]
     public TMP_InputField merchantCountInput;
     public TMP_InputField pirateCountInput;
     public TMP_InputField securityCountInput;
-    public TMP_InputField merchantSpawnRateInput;
-    public TMP_InputField pirateSpawnRateInput;
-    public TMP_InputField securitySpawnRateInput;
+
+    [Header("=== SPAWN RATE INPUTS ===")]
+    public TMP_InputField merchantSpawnInput;
+    public TMP_InputField pirateSpawnInput;
+    public TMP_InputField securitySpawnInput;
+
+    [Header("=== RUN SETTINGS INPUTS ===")]
     public TMP_InputField durationInput;
     public TMP_InputField seedInput;
+
+    [Header("=== ENVIRONMENT DROPDOWNS ===")]
+    public TMP_Dropdown timeOfDayDropdown;
+    public TMP_Dropdown weatherDropdown;
 
     [Header("=== DISPLAY TEXT ===")]
     public TMP_Text statusText;
@@ -43,6 +52,12 @@ public class SimpleButtons : MonoBehaviour
     [Header("=== SPEED ===")]
     public Slider speedSlider;
     public TMP_Text speedLabel;
+
+    [Header("=== CONFIRMATION DIALOG ===")]
+    public ConfirmationDialog confirmationDialog;
+
+    [Header("=== SPAWN ZONE CONFIGURATOR ===")]
+    public SpawnZoneConfigurator spawnZoneConfigurator;
 
     private bool isPaused = false;
 
@@ -55,6 +70,13 @@ public class SimpleButtons : MonoBehaviour
         if (resetBtn) resetBtn.onClick.AddListener(OnResetClicked);
         if (stepBtn) stepBtn.onClick.AddListener(OnStepClicked);
 
+        // Connect environment dropdowns
+        if (timeOfDayDropdown)
+            timeOfDayDropdown.onValueChanged.AddListener(OnTimeOfDayChanged);
+        
+        if (weatherDropdown)
+            weatherDropdown.onValueChanged.AddListener(OnWeatherChanged);
+
         // Speed slider
         if (speedSlider)
         {
@@ -66,6 +88,12 @@ public class SimpleButtons : MonoBehaviour
 
         SetStatus("READY");
         UpdatePauseButtonText();
+        
+        // Show spawn zones for setup
+        if (spawnZoneConfigurator != null)
+        {
+            spawnZoneConfigurator.ShowForSetup();
+        }
     }
 
     void Update()
@@ -81,14 +109,28 @@ public class SimpleButtons : MonoBehaviour
     {
         Debug.Log("START clicked");
         
-        // Apply settings from input fields BEFORE starting
         ApplySettingsFromInputs();
+        ApplyEnvironmentSettings();
+        
+        // Lock spawn zones - no more editing during simulation
+        if (spawnZoneConfigurator != null)
+        {
+            spawnZoneConfigurator.SyncToSpawner();  // Save final positions
+            spawnZoneConfigurator.Lock();           // Hides everything
+        }
         
         if (engine) engine.StartRun();
         
         isPaused = false;
         UpdatePauseButtonText();
         SetStatus("RUNNING");
+
+        // Hide setup, show sidebar
+        if (setupPanel) setupPanel.SetActive(false);
+        if (sidebarPanel) sidebarPanel.SetActive(true);
+
+        // Show live results panel
+        if (liveResultsPanel) liveResultsPanel.ShowLiveResults();
     }
 
     void OnPauseClicked()
@@ -99,14 +141,12 @@ public class SimpleButtons : MonoBehaviour
 
         if (isPaused)
         {
-            // Currently paused, so RESUME
             engine.StartRun();
             isPaused = false;
             SetStatus("RUNNING");
         }
         else
         {
-            // Currently running, so PAUSE
             engine.PauseRun();
             isPaused = true;
             SetStatus("PAUSED");
@@ -122,11 +162,45 @@ public class SimpleButtons : MonoBehaviour
         isPaused = false;
         UpdatePauseButtonText();
         SetStatus("STOPPED");
+
+        // Show final results
+        if (liveResultsPanel) liveResultsPanel.ShowFinalResults();
     }
 
     void OnResetClicked()
     {
         Debug.Log("RESET clicked");
+        
+        // Check if simulation has started (needs warning)
+        bool needsWarning = engine != null && engine.GetTickCount() > 0;
+        
+        if (needsWarning && confirmationDialog != null)
+        {
+            confirmationDialog.Show(
+                "Reset Simulation?",
+                "This will lose your current run progress.",
+                onConfirm: DoReset
+            );
+        }
+        else
+        {
+            DoReset();
+        }
+    }
+
+    /// <summary>
+    /// Actually performs the reset after confirmation
+    /// </summary>
+    void DoReset()
+    {
+        // Show end of run panel first (if simulation ran)
+        if (engine != null && engine.GetTickCount() > 0)
+        {
+            if (EndOfRunPanel.Instance != null)
+            {
+                EndOfRunPanel.Instance.Show();
+            }
+        }
         
         if (engine) engine.ResetToNewRun();
         
@@ -134,19 +208,31 @@ public class SimpleButtons : MonoBehaviour
         UpdatePauseButtonText();
         SetStatus("READY");
 
+        // Unlock spawn zones for editing again
+        if (spawnZoneConfigurator != null)
+        {
+            spawnZoneConfigurator.ShowForSetup();  // Shows and validates positions
+        }
+
         // Show setup panel, hide sidebar
         if (setupPanel) setupPanel.SetActive(true);
         if (sidebarPanel) sidebarPanel.SetActive(false);
+
+        // Hide live results
+        if (liveResultsPanel) liveResultsPanel.HideLiveResults();
     }
 
     void OnStepClicked()
     {
         Debug.Log("STEP clicked");
         
-        // Apply settings if this is the first step
         if (engine != null && engine.GetTickCount() == 0)
         {
             ApplySettingsFromInputs();
+            ApplyEnvironmentSettings();
+            
+            // Show live results on first step too
+            if (liveResultsPanel) liveResultsPanel.ShowLiveResults();
         }
         
         if (engine) engine.StepOnce();
@@ -158,29 +244,51 @@ public class SimpleButtons : MonoBehaviour
         if (engine) engine.SetTickInterval(1f / value);
     }
 
-    // ===== APPLY SETTINGS FROM INPUT FIELDS =====
+    // ===== ENVIRONMENT HANDLERS =====
+
+    void OnTimeOfDayChanged(int index)
+    {
+        if (EnvironmentSettings.Instance != null)
+            EnvironmentSettings.Instance.SetTimeOfDay(index);
+    }
+
+    void OnWeatherChanged(int index)
+    {
+        if (EnvironmentSettings.Instance != null)
+            EnvironmentSettings.Instance.SetWeather(index);
+    }
+
+    void ApplyEnvironmentSettings()
+    {
+        if (EnvironmentSettings.Instance == null) return;
+
+        if (timeOfDayDropdown)
+            EnvironmentSettings.Instance.SetTimeOfDay(timeOfDayDropdown.value);
+        
+        if (weatherDropdown)
+            EnvironmentSettings.Instance.SetWeather(weatherDropdown.value);
+
+        Debug.Log($"Environment: {EnvironmentSettings.Instance.GetConditionsSummary()}");
+    }
+
+    // ===== APPLY SETTINGS =====
 
     void ApplySettingsFromInputs()
     {
         if (engine == null) return;
 
-        // Initial ship counts
         engine.initialMerchants = ParseInt(merchantCountInput, 2);
         engine.initialPirates = ParseInt(pirateCountInput, 1);
         engine.initialSecurity = ParseInt(securityCountInput, 1);
 
-        // Spawn intervals
-        engine.merchantSpawnInterval = ParseInt(merchantSpawnRateInput, 50);
-        engine.pirateSpawnInterval = ParseInt(pirateSpawnRateInput, 80);
-        engine.securitySpawnInterval = ParseInt(securitySpawnRateInput, 100);
+        engine.merchantSpawnInterval = ParseInt(merchantSpawnInput, 50);
+        engine.pirateSpawnInterval = ParseInt(pirateSpawnInput, 80);
+        engine.securitySpawnInterval = ParseInt(securitySpawnInput, 100);
 
-        // Run settings
         engine.maxTicks = ParseInt(durationInput, 0);
         engine.runSeed = ParseInt(seedInput, 12345);
 
-        Debug.Log($"Applied settings: Merchants={engine.initialMerchants}, Pirates={engine.initialPirates}, Security={engine.initialSecurity}");
-        Debug.Log($"Spawn rates: M={engine.merchantSpawnInterval}, P={engine.pirateSpawnInterval}, S={engine.securitySpawnInterval}");
-        Debug.Log($"Duration={engine.maxTicks}, Seed={engine.runSeed}");
+        Debug.Log($"Applied: Merchants={engine.initialMerchants}, Pirates={engine.initialPirates}, Security={engine.initialSecurity}");
     }
 
     int ParseInt(TMP_InputField input, int defaultValue)
@@ -197,9 +305,7 @@ public class SimpleButtons : MonoBehaviour
     void UpdatePauseButtonText()
     {
         if (pauseButtonText)
-        {
             pauseButtonText.text = isPaused ? "RESUME" : "PAUSE";
-        }
     }
 
     void SetStatus(string text)
@@ -231,6 +337,17 @@ public class SimpleButtons : MonoBehaviour
         int ticks = engine.GetTickCount();
         int ticksPerHour = 60;
         int startHour = 6;
+        
+        if (EnvironmentSettings.Instance != null)
+        {
+            switch (EnvironmentSettings.Instance.timeOfDay)
+            {
+                case TimeOfDay.Morning: startHour = 6; break;
+                case TimeOfDay.Noon: startHour = 12; break;
+                case TimeOfDay.Evening: startHour = 18; break;
+                case TimeOfDay.Night: startHour = 22; break;
+            }
+        }
         
         int totalMinutes = (ticks * 60) / Mathf.Max(1, ticksPerHour);
         int hours = (startHour + (totalMinutes / 60)) % 24;
