@@ -1768,6 +1768,64 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 582742836}
   m_CullTransparentMesh: 1
+--- !u!1 &679553807
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 679553809}
+  - component: {fileID: 679553808}
+  m_Layer: 0
+  m_Name: SpawnZoneConfigurator
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &679553808
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 679553807}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 390de5b324d8ce942b04a66de71e8f16, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  shipSpawner: {fileID: 239971860}
+  mainCamera: {fileID: 0}
+  targetCanvas: {fileID: 0}
+  markerSize: 40
+  zoneOpacity: 0.3
+  showZoneRectangles: 1
+  showConnectionLines: 1
+  validateWaterOnly: 1
+  merchantColor: {r: 1, g: 0.85, b: 0.2, a: 1}
+  pirateColor: {r: 0.9, g: 0.2, b: 0.2, a: 1}
+  securityColor: {r: 0.2, g: 0.6, b: 1, a: 1}
+  destinationColor: {r: 0.2, g: 0.9, b: 0.3, a: 1}
+  invalidColor: {r: 1, g: 0, b: 0, a: 0.5}
+  isLocked: 0
+--- !u!4 &679553809
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 679553807}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 66.10155, y: 43.907948, z: -10.869616}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &752783885
 GameObject:
   m_ObjectHideFlags: 0
@@ -6055,6 +6113,7 @@ MonoBehaviour:
   speedSlider: {fileID: 0}
   speedLabel: {fileID: 0}
   confirmationDialog: {fileID: 981928273}
+  spawnZoneConfigurator: {fileID: 0}
 --- !u!4 &1975225898
 Transform:
   m_ObjectHideFlags: 0
@@ -7010,3 +7069,4 @@ SceneRoots:
   - {fileID: 933660092}
   - {fileID: 1051679580}
   - {fileID: 981928272}
+  - {fileID: 679553809}

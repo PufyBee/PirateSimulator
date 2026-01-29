@@ -113,10 +113,21 @@ public class SimpleButtons : MonoBehaviour
         ApplyEnvironmentSettings();
         
         // Lock spawn zones - no more editing during simulation
+        if (spawnZoneConfigurator == null)
+        {
+            // Try to find it
+            spawnZoneConfigurator = FindObjectOfType<SpawnZoneConfigurator>();
+        }
+        
         if (spawnZoneConfigurator != null)
         {
+            Debug.Log("START: Locking spawn zone configurator");
             spawnZoneConfigurator.SyncToSpawner();  // Save final positions
             spawnZoneConfigurator.Lock();           // Hides everything
+        }
+        else
+        {
+            Debug.LogWarning("START: SpawnZoneConfigurator is NULL - zones won't hide!");
         }
         
         if (engine) engine.StartRun();

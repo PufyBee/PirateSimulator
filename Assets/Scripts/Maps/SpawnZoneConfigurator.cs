@@ -2,6 +2,7 @@
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
+using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
@@ -39,17 +40,16 @@ public class SpawnZoneConfigurator : MonoBehaviour
     public bool validateWaterOnly = true;
 
     [Header("=== COLORS ===")]
-    public Color merchantColor = new Color(1f, 0.85f, 0.2f);     // Gold
-    public Color pirateColor = new Color(0.9f, 0.2f, 0.2f);      // Red
-    public Color securityColor = new Color(0.2f, 0.6f, 1f);      // Blue
-    public Color destinationColor = new Color(0.2f, 0.9f, 0.3f); // Green
-    public Color invalidColor = new Color(1f, 0f, 0f, 0.5f);     // Red tint for invalid
+    public Color merchantColor = new Color(1f, 0.85f, 0.2f);
+    public Color pirateColor = new Color(0.9f, 0.2f, 0.2f);
+    public Color securityColor = new Color(0.2f, 0.6f, 1f);
+    public Color destinationColor = new Color(0.2f, 0.9f, 0.3f);
+    public Color invalidColor = new Color(1f, 0f, 0f, 0.5f);
 
     [Header("=== STATE ===")]
     public bool isLocked = false;
-    public bool isVisible = true;
 
-    // Internal references
+    private bool shouldBeVisible = true;
     private Dictionary<string, DraggableZoneMarker> markers = new Dictionary<string, DraggableZoneMarker>();
     private Dictionary<string, GameObject> zoneVisuals = new Dictionary<string, GameObject>();
     private Dictionary<string, LineRenderer> connectionLines = new Dictionary<string, LineRenderer>();
@@ -65,36 +65,47 @@ public class SpawnZoneConfigurator : MonoBehaviour
     void Start()
     {
         Initialize();
+        StartCoroutine(DelayedShowForSetup());
+    }
+
+    IEnumerator DelayedShowForSetup()
+    {
+        yield return null;
         
-        // Start VISIBLE - user is in setup mode
+        float timeout = 2f;
+        float elapsed = 0f;
+        while (MapColorSampler.Instance == null && elapsed < timeout)
+        {
+            yield return null;
+            elapsed += Time.deltaTime;
+        }
+        
         ShowForSetup();
     }
 
-    /// <summary>
-    /// Call this when entering setup mode (before simulation)
-    /// </summary>
     public void ShowForSetup()
     {
+        Debug.Log("SpawnZoneConfigurator: ShowForSetup called");
+        
         if (!isInitialized) Initialize();
         
-        // Sync positions from spawner (which has presets)
         SyncFromSpawner();
-        
-        // Validate all markers are in water, fix if not
         ValidateAllMarkerPositions();
         
-        // Show everything
-        SetVisible(true);
         isLocked = false;
+        SetVisible(true);
         SetMarkersInteractable(true);
+        
+        Debug.Log("SpawnZoneConfigurator: Zones now VISIBLE");
     }
 
-    /// <summary>
-    /// Validate and fix all marker positions to be in water
-    /// </summary>
     void ValidateAllMarkerPositions()
     {
-        if (MapColorSampler.Instance == null) return;
+        if (MapColorSampler.Instance == null)
+        {
+            Debug.LogWarning("SpawnZoneConfigurator: MapColorSampler not ready, skipping validation");
+            return;
+        }
 
         foreach (var kvp in markers)
         {
@@ -107,14 +118,12 @@ public class SpawnZoneConfigurator : MonoBehaviour
             
             if (!MapColorSampler.Instance.IsWater(pos))
             {
-                // Find nearest water and move there
                 Vector3 validPos = FindNearestWater(pos);
                 marker.transform.position = validPos;
-                Debug.Log($"SpawnZoneConfigurator: Moved {id} from land to water at {validPos}");
+                Debug.Log($"SpawnZoneConfigurator: Moved {id} from land to water");
             }
         }
         
-        // Sync corrected positions back to spawner
         SyncToSpawner();
     }
 
@@ -122,7 +131,6 @@ public class SpawnZoneConfigurator : MonoBehaviour
     {
         if (isInitialized) return;
 
-        // Find references if not set
         if (shipSpawner == null)
             shipSpawner = FindObjectOfType<ShipSpawner>();
         if (mainCamera == null)
@@ -130,19 +138,15 @@ public class SpawnZoneConfigurator : MonoBehaviour
         if (targetCanvas == null)
             targetCanvas = FindObjectOfType<Canvas>();
 
-        // Create containers
         markerContainer = new GameObject("SpawnZoneMarkers");
         markerContainer.transform.SetParent(transform);
 
         zoneContainer = new GameObject("SpawnZoneVisuals");
         zoneContainer.transform.SetParent(transform);
 
-        // Create all markers and visuals
         CreateMarkerSet();
         CreateZoneVisuals();
         CreateConnectionLines();
-
-        // Load current spawner positions
         SyncFromSpawner();
 
         isInitialized = true;
@@ -150,9 +154,7 @@ public class SpawnZoneConfigurator : MonoBehaviour
 
     void Update()
     {
-        if (!isInitialized || !isVisible) return;
-
-        // Update zone visuals to follow markers
+        if (!isInitialized || !shouldBeVisible) return;
         UpdateZoneVisuals();
         UpdateConnectionLines();
     }
@@ -161,36 +163,27 @@ public class SpawnZoneConfigurator : MonoBehaviour
 
     void CreateMarkerSet()
     {
-        // Merchant
-        CreateMarker("MerchantSpawn", "M", merchantColor, "Merchant Spawn\n(Drag to move)");
-        CreateMarker("MerchantDest", "M→", destinationColor, "Merchant Destination\n(Where merchants go)");
-
-        // Pirate  
-        CreateMarker("PirateSpawn", "P", pirateColor, "Pirate Spawn\n(Drag to move)");
-        CreateMarker("PiratePatrol", "P⚔", new Color(pirateColor.r, pirateColor.g, pirateColor.b, 0.7f), "Pirate Patrol Area\n(Where pirates hunt)");
-
-        // Security
-        CreateMarker("SecuritySpawn", "S", securityColor, "Security Spawn\n(Drag to move)");
-        CreateMarker("SecurityPatrol", "S⚔", new Color(securityColor.r, securityColor.g, securityColor.b, 0.7f), "Security Patrol Area\n(Where navy patrols)");
+        CreateMarker("MerchantSpawn", "M", merchantColor, "Merchant Spawn");
+        CreateMarker("MerchantDest", "M→", destinationColor, "Merchant Destination");
+        CreateMarker("PirateSpawn", "P", pirateColor, "Pirate Spawn");
+        CreateMarker("PiratePatrol", "P⚔", new Color(pirateColor.r, pirateColor.g, pirateColor.b, 0.7f), "Pirate Patrol");
+        CreateMarker("SecuritySpawn", "S", securityColor, "Security Spawn");
+        CreateMarker("SecurityPatrol", "S⚔", new Color(securityColor.r, securityColor.g, securityColor.b, 0.7f), "Security Patrol");
     }
 
     void CreateMarker(string id, string label, Color color, string tooltip)
     {
-        // Create marker GameObject
         GameObject markerObj = new GameObject($"Marker_{id}");
         markerObj.transform.SetParent(markerContainer.transform);
 
-        // Add sprite renderer for the marker
         SpriteRenderer sr = markerObj.AddComponent<SpriteRenderer>();
         sr.sprite = CreateCircleSprite(64);
         sr.color = color;
         sr.sortingOrder = 100;
 
-        // Scale marker
-        float worldSize = markerSize / 10f; // Adjust based on your camera size
+        float worldSize = markerSize / 10f;
         markerObj.transform.localScale = Vector3.one * worldSize;
 
-        // Add label
         GameObject labelObj = new GameObject("Label");
         labelObj.transform.SetParent(markerObj.transform);
         labelObj.transform.localPosition = Vector3.zero;
@@ -204,21 +197,17 @@ public class SpawnZoneConfigurator : MonoBehaviour
         textMesh.alignment = TextAlignment.Center;
         labelObj.transform.localScale = Vector3.one * 0.3f;
 
-        // Make label render above marker
         MeshRenderer mr = labelObj.GetComponent<MeshRenderer>();
         mr.sortingOrder = 101;
 
-        // Add collider for clicking
         CircleCollider2D collider = markerObj.AddComponent<CircleCollider2D>();
         collider.radius = 0.5f;
 
-        // Add draggable component
         DraggableZoneMarker draggable = markerObj.AddComponent<DraggableZoneMarker>();
         draggable.markerId = id;
         draggable.configurator = this;
         draggable.tooltipText = tooltip;
 
-        // Add outline ring
         GameObject ring = new GameObject("Ring");
         ring.transform.SetParent(markerObj.transform);
         ring.transform.localPosition = Vector3.zero;
@@ -312,13 +301,11 @@ public class SpawnZoneConfigurator : MonoBehaviour
     Sprite CreateSquareSprite(int size)
     {
         Texture2D tex = new Texture2D(size, size);
-        Color fillColor = Color.white;
 
         for (int y = 0; y < size; y++)
         {
             for (int x = 0; x < size; x++)
             {
-                // Border
                 if (x < 2 || x >= size - 2 || y < 2 || y >= size - 2)
                     tex.SetPixel(x, y, Color.white);
                 else
@@ -328,8 +315,6 @@ public class SpawnZoneConfigurator : MonoBehaviour
 
         tex.Apply();
         tex.filterMode = FilterMode.Point;
-        
-        // Create sliced sprite for proper scaling
         return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size, 0, SpriteMeshType.FullRect, new Vector4(4, 4, 4, 4));
     }
 
@@ -337,45 +322,28 @@ public class SpawnZoneConfigurator : MonoBehaviour
     {
         if (!showZoneRectangles) return;
 
-        // Merchant spawn zone
         if (markers.ContainsKey("MerchantSpawn") && zoneVisuals.ContainsKey("MerchantSpawn"))
-        {
             UpdateZoneRect("MerchantSpawn", markers["MerchantSpawn"].transform.position, GetZoneSize("MerchantSpawn"));
-        }
 
-        // Pirate spawn zone
         if (markers.ContainsKey("PirateSpawn") && zoneVisuals.ContainsKey("PirateSpawn"))
-        {
             UpdateZoneRect("PirateSpawn", markers["PirateSpawn"].transform.position, GetZoneSize("PirateSpawn"));
-        }
 
-        // Security spawn zone
         if (markers.ContainsKey("SecuritySpawn") && zoneVisuals.ContainsKey("SecuritySpawn"))
-        {
             UpdateZoneRect("SecuritySpawn", markers["SecuritySpawn"].transform.position, GetZoneSize("SecuritySpawn"));
-        }
 
-        // Destination/Patrol zones (smaller)
         if (markers.ContainsKey("MerchantDest") && zoneVisuals.ContainsKey("MerchantDest"))
-        {
             UpdateZoneRect("MerchantDest", markers["MerchantDest"].transform.position, GetZoneSize("MerchantDest"));
-        }
 
         if (markers.ContainsKey("PiratePatrol") && zoneVisuals.ContainsKey("PiratePatrol"))
-        {
             UpdateZoneRect("PiratePatrol", markers["PiratePatrol"].transform.position, GetZoneSize("PiratePatrol"));
-        }
 
         if (markers.ContainsKey("SecurityPatrol") && zoneVisuals.ContainsKey("SecurityPatrol"))
-        {
             UpdateZoneRect("SecurityPatrol", markers["SecurityPatrol"].transform.position, GetZoneSize("SecurityPatrol"));
-        }
     }
 
     void UpdateZoneRect(string id, Vector3 center, Vector2 size)
     {
         if (!zoneVisuals.ContainsKey(id)) return;
-
         GameObject zone = zoneVisuals[id];
         zone.transform.position = new Vector3(center.x, center.y, 1);
         zone.transform.localScale = new Vector3(size.x, size.y, 1);
@@ -404,7 +372,6 @@ public class SpawnZoneConfigurator : MonoBehaviour
     void CreateConnectionLines()
     {
         if (!showConnectionLines) return;
-
         CreateLine("MerchantPath", merchantColor);
         CreateLine("PiratePath", pirateColor);
         CreateLine("SecurityPath", securityColor);
@@ -432,30 +399,21 @@ public class SpawnZoneConfigurator : MonoBehaviour
     {
         if (!showConnectionLines) return;
 
-        // Merchant: Spawn → Destination
-        if (connectionLines.ContainsKey("MerchantPath") && 
-            markers.ContainsKey("MerchantSpawn") && 
-            markers.ContainsKey("MerchantDest"))
+        if (connectionLines.ContainsKey("MerchantPath") && markers.ContainsKey("MerchantSpawn") && markers.ContainsKey("MerchantDest"))
         {
             LineRenderer lr = connectionLines["MerchantPath"];
             lr.SetPosition(0, markers["MerchantSpawn"].transform.position);
             lr.SetPosition(1, markers["MerchantDest"].transform.position);
         }
 
-        // Pirate: Spawn → Patrol
-        if (connectionLines.ContainsKey("PiratePath") && 
-            markers.ContainsKey("PirateSpawn") && 
-            markers.ContainsKey("PiratePatrol"))
+        if (connectionLines.ContainsKey("PiratePath") && markers.ContainsKey("PirateSpawn") && markers.ContainsKey("PiratePatrol"))
         {
             LineRenderer lr = connectionLines["PiratePath"];
             lr.SetPosition(0, markers["PirateSpawn"].transform.position);
             lr.SetPosition(1, markers["PiratePatrol"].transform.position);
         }
 
-        // Security: Spawn → Patrol
-        if (connectionLines.ContainsKey("SecurityPath") && 
-            markers.ContainsKey("SecuritySpawn") && 
-            markers.ContainsKey("SecurityPatrol"))
+        if (connectionLines.ContainsKey("SecurityPath") && markers.ContainsKey("SecuritySpawn") && markers.ContainsKey("SecurityPatrol"))
         {
             LineRenderer lr = connectionLines["SecurityPath"];
             lr.SetPosition(0, markers["SecuritySpawn"].transform.position);
@@ -467,24 +425,37 @@ public class SpawnZoneConfigurator : MonoBehaviour
 
     #region === SYNC WITH SPAWNER ===
 
-    /// <summary>
-    /// Load positions from ShipSpawner to markers
-    /// </summary>
     public void SyncFromSpawner()
     {
         if (shipSpawner == null) return;
 
-        SetMarkerPosition("MerchantSpawn", shipSpawner.merchantSpawnCenter);
-        SetMarkerPosition("MerchantDest", shipSpawner.merchantDestination);
-        SetMarkerPosition("PirateSpawn", shipSpawner.pirateSpawnCenter);
-        SetMarkerPosition("PiratePatrol", shipSpawner.piratePatrolPoint);
-        SetMarkerPosition("SecuritySpawn", shipSpawner.securitySpawnCenter);
-        SetMarkerPosition("SecurityPatrol", shipSpawner.securityPatrolPoint);
+        SetMarkerPosition("MerchantSpawn", ClampToReasonableBounds(shipSpawner.merchantSpawnCenter));
+        SetMarkerPosition("MerchantDest", ClampToReasonableBounds(shipSpawner.merchantDestination));
+        SetMarkerPosition("PirateSpawn", ClampToReasonableBounds(shipSpawner.pirateSpawnCenter));
+        SetMarkerPosition("PiratePatrol", ClampToReasonableBounds(shipSpawner.piratePatrolPoint));
+        SetMarkerPosition("SecuritySpawn", ClampToReasonableBounds(shipSpawner.securitySpawnCenter));
+        SetMarkerPosition("SecurityPatrol", ClampToReasonableBounds(shipSpawner.securityPatrolPoint));
     }
 
-    /// <summary>
-    /// Save marker positions to ShipSpawner
-    /// </summary>
+    Vector2 ClampToReasonableBounds(Vector2 pos)
+    {
+        float maxDist = 200f;
+        
+        if (mainCamera != null)
+            maxDist = mainCamera.orthographicSize * 2f;
+        
+        if (pos.magnitude > maxDist * 2f)
+        {
+            Debug.LogWarning($"SpawnZoneConfigurator: Position {pos} too far, resetting to origin");
+            return Vector2.zero;
+        }
+        
+        pos.x = Mathf.Clamp(pos.x, -maxDist, maxDist);
+        pos.y = Mathf.Clamp(pos.y, -maxDist, maxDist);
+        
+        return pos;
+    }
+
     public void SyncToSpawner()
     {
         if (shipSpawner == null) return;
@@ -502,63 +473,48 @@ public class SpawnZoneConfigurator : MonoBehaviour
         if (markers.ContainsKey("SecurityPatrol"))
             shipSpawner.securityPatrolPoint = (Vector2)markers["SecurityPatrol"].transform.position;
 
-        Debug.Log("Spawn zones saved to ShipSpawner!");
+        Debug.Log("SpawnZoneConfigurator: Synced to spawner");
     }
 
     void SetMarkerPosition(string id, Vector2 position)
     {
         if (markers.ContainsKey(id))
-        {
             markers[id].transform.position = new Vector3(position.x, position.y, 0);
-        }
     }
 
     #endregion
 
     #region === PUBLIC API ===
 
-    /// <summary>
-    /// Called when a marker is moved by the user
-    /// </summary>
     public void OnMarkerMoved(string markerId, Vector3 newPosition)
     {
         if (isLocked) return;
 
-        // Validate position is in water
         if (validateWaterOnly && MapColorSampler.Instance != null)
         {
             bool isValid = MapColorSampler.Instance.IsWater(newPosition);
             
             if (!isValid)
             {
-                // SNAP BACK - Don't allow placement on land!
-                // Find nearest valid water position or revert to last good position
                 Vector3 validPos = FindNearestWater(newPosition);
                 
                 if (markers.ContainsKey(markerId))
                 {
                     markers[markerId].transform.position = validPos;
-                    
-                    // Flash red briefly to show invalid
                     StartCoroutine(FlashInvalid(markers[markerId]));
                 }
                 
-                Debug.Log($"Cannot place {markerId} on land! Snapped to nearest water.");
+                Debug.Log($"Cannot place {markerId} on land! Snapped to water.");
             }
         }
 
-        // Sync to spawner
         SyncToSpawner();
     }
 
-    /// <summary>
-    /// Find nearest water position from a land position
-    /// </summary>
     Vector3 FindNearestWater(Vector3 landPos)
     {
         if (MapColorSampler.Instance == null) return landPos;
 
-        // Search in expanding circles for water
         float searchRadius = 5f;
         float maxRadius = 100f;
         int samples = 16;
@@ -575,28 +531,21 @@ public class SpawnZoneConfigurator : MonoBehaviour
                 );
 
                 if (MapColorSampler.Instance.IsWater(testPos))
-                {
                     return testPos;
-                }
             }
             searchRadius += 5f;
         }
 
-        // Couldn't find water, return original (shouldn't happen)
         return landPos;
     }
 
-    /// <summary>
-    /// Flash marker red to indicate invalid placement
-    /// </summary>
-    System.Collections.IEnumerator FlashInvalid(DraggableZoneMarker marker)
+    IEnumerator FlashInvalid(DraggableZoneMarker marker)
     {
         SpriteRenderer sr = marker.GetComponent<SpriteRenderer>();
         if (sr == null) yield break;
 
         Color originalColor = GetMarkerColor(marker.markerId);
         
-        // Flash red
         sr.color = invalidColor;
         yield return new WaitForSeconds(0.15f);
         sr.color = originalColor;
@@ -617,49 +566,37 @@ public class SpawnZoneConfigurator : MonoBehaviour
         return Color.white;
     }
 
-    /// <summary>
-    /// Lock zones (call when simulation starts)
-    /// </summary>
     public void Lock()
     {
+        Debug.Log("SpawnZoneConfigurator: LOCK - Hiding zones");
         isLocked = true;
-        
-        // HIDE EVERYTHING during simulation
         SetVisible(false);
-        
-        Debug.Log("Spawn zones locked and hidden");
     }
 
-    /// <summary>
-    /// Unlock zones (call on reset)
-    /// </summary>
     public void Unlock()
     {
+        Debug.Log("SpawnZoneConfigurator: UNLOCK - Showing zones");
         isLocked = false;
-        
-        // SHOW EVERYTHING again for editing
         SetVisible(true);
         SetMarkersInteractable(true);
-        
-        Debug.Log("Spawn zones unlocked and visible");
     }
 
-    /// <summary>
-    /// Show/hide all zone visuals
-    /// </summary>
     public void SetVisible(bool visible)
     {
-        isVisible = visible;
-        markerContainer.SetActive(visible);
-        zoneContainer.SetActive(visible);
+        shouldBeVisible = visible;
+        
+        if (markerContainer != null)
+            markerContainer.SetActive(visible);
+        if (zoneContainer != null)
+            zoneContainer.SetActive(visible);
+        
+        Debug.Log($"SpawnZoneConfigurator: SetVisible({visible})");
     }
 
-    /// <summary>
-    /// Show markers only (hide zone rectangles)
-    /// </summary>
     public void SetMinimalMode(bool minimal)
     {
-        zoneContainer.SetActive(!minimal);
+        if (zoneContainer != null)
+            zoneContainer.SetActive(!minimal);
     }
 
     void SetMarkersInteractable(bool interactable)
@@ -668,7 +605,6 @@ public class SpawnZoneConfigurator : MonoBehaviour
         {
             marker.isInteractable = interactable;
             
-            // Visual feedback
             SpriteRenderer sr = marker.GetComponent<SpriteRenderer>();
             if (sr != null)
             {
@@ -679,22 +615,14 @@ public class SpawnZoneConfigurator : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Reset to default positions from MapSpawnPresets
-    /// </summary>
     public void ResetToDefaults()
     {
-        // Try to get defaults from MapSpawnPresets
         var presets = FindObjectOfType<MapSpawnPresets>();
         if (presets != null && MapManager.Instance != null)
-        {
             presets.ApplyPreset(MapManager.Instance.GetCurrentMapIndex());
-        }
 
-        // Sync from spawner (which now has preset values)
         SyncFromSpawner();
-        
-        Debug.Log("Spawn zones reset to defaults");
+        Debug.Log("SpawnZoneConfigurator: Reset to defaults");
     }
 
     #endregion
@@ -726,35 +654,23 @@ public class DraggableZoneMarker : MonoBehaviour
     void OnMouseEnter()
     {
         if (!isInteractable) return;
-
-        // Highlight effect
         transform.localScale = originalScale * 1.2f;
-        
-        // Show tooltip
-        if (ShipTooltip.Instance != null && !string.IsNullOrEmpty(tooltipText))
-        {
-            // Could show custom tooltip here
-        }
     }
 
     void OnMouseExit()
     {
         if (!isDragging)
-        {
             transform.localScale = originalScale;
-        }
     }
 
     void OnMouseDown()
     {
-        if (!isInteractable || configurator.isLocked) return;
+        if (!isInteractable || configurator == null || configurator.isLocked) return;
 
         isDragging = true;
         Vector3 mouseWorld = cam.ScreenToWorldPoint(Input.mousePosition);
         mouseWorld.z = 0;
         offset = transform.position - mouseWorld;
-
-        // Visual feedback
         transform.localScale = originalScale * 1.3f;
     }
 
@@ -774,10 +690,7 @@ public class DraggableZoneMarker : MonoBehaviour
         isDragging = false;
         transform.localScale = originalScale;
 
-        // Notify configurator
         if (configurator != null)
-        {
             configurator.OnMarkerMoved(markerId, transform.position);
-        }
     }
 }
