@@ -131,6 +131,12 @@ public class MapManager : MonoBehaviour
 
         // Fire event for other systems
         OnMapChanged?.Invoke(currentMapIndex);
+
+        // Sync spawn zone configurator to show new preset positions
+        if (SpawnZoneConfigurator.Instance != null)
+        {
+            SpawnZoneConfigurator.Instance.SyncFromSpawner();
+        }
     }
 
     void UpdateMapColorSampler()

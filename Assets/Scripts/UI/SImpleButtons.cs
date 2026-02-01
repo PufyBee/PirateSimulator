@@ -3,29 +3,59 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// UI Controller with LiveResultsPanel integration
+/// UI Controller - Updated to work with new UICanvas design
+/// 
+/// Supports:
+/// - Button-based Time of Day selection (1-4 buttons)
+/// - Button-based Weather selection (1-4 buttons)
+/// - Separate input fields for ship counts and spawn rates
+/// - Start/Pause/Step/Restart buttons
+/// - Map selection buttons
+/// - Setup Panel ↔ Controls Panel switching
+/// 
+/// WIRING GUIDE (Inspector):
+/// ─────────────────────────
+/// startBtn          → UICanvas > Start Button (Root) > Start Button (Shadow) > Start Button (Button)
+/// pauseBtn          → UICanvas > Main Controls (Root) > Pause Button (Button)
+/// stepBtn           → UICanvas > Main Controls (Root) > Step Button (Button)
+/// resetBtn          → UICanvas > Main Controls (Root) > Restart Button (Button)
+/// 
+/// merchantCountInput → UICanvas > Setup Bar > Config Panel > Initial Ships (Root) > Merchant Ship (Input)
+/// pirateCountInput   → UICanvas > Setup Bar > Config Panel > Initial Ships (Root) > Pirate Ship (Input)
+/// securityCountInput → UICanvas > Setup Bar > Config Panel > Initial Ships (Root) > Military Ship (Input)
+/// 
+/// merchantSpawnInput → UICanvas > Setup Bar > Config Panel > Spawn Rates (Root) > Merchant Ship (Input) 2
+/// pirateSpawnInput   → UICanvas > Setup Bar > Config Panel > Spawn Rates (Root) > Pirate Ship (Input) 2
+/// securitySpawnInput → UICanvas > Setup Bar > Config Panel > Spawn Rates (Root) > Military Ship (Input) 2
+/// 
+/// durationInput      → UICanvas > Setup Bar > Config Panel > Duration (Root) > Duration (Input)
+/// seedInput          → UICanvas > Setup Bar > Config Panel > Seed (Root) > Seed (Input)
+/// 
+/// todButtons[0-3]    → UICanvas > Setup Bar > Config Panel > Time of Day (Root) > Time of Day Button 1-4
+/// weatherButtons[0-3] → UICanvas > Setup Bar > Config Panel > Weather (Root) > Weather Button 1-4
+/// 
+/// setupPanel         → UICanvas > Setup Bar (Root)
+/// controlsPanel      → UICanvas > Main Controls (Root)
+/// startButtonRoot    → UICanvas > Start Button (Root)
 /// </summary>
 public class SimpleButtons : MonoBehaviour
 {
     [Header("=== BUTTONS ===")]
     public Button startBtn;
     public Button pauseBtn;
-    public Button stopBtn;
-    public Button resetBtn;
     public Button stepBtn;
+    public Button resetBtn;
 
-    [Header("=== BUTTON TEXT ===")]
+    [Header("=== PAUSE BUTTON TEXT ===")]
     public TMP_Text pauseButtonText;
 
     [Header("=== REFERENCES ===")]
     public SimulationEngine engine;
-    public GameObject setupPanel;
-    public GameObject sidebarPanel;
 
     [Header("=== LIVE RESULTS ===")]
     public LiveResultsPanel liveResultsPanel;
 
-    [Header("=== SHIP COUNT INPUTS ===")]
+    [Header("=== SHIP COUNT INPUTS (Initial Ships) ===")]
     public TMP_InputField merchantCountInput;
     public TMP_InputField pirateCountInput;
     public TMP_InputField securityCountInput;
@@ -39,36 +69,84 @@ public class SimpleButtons : MonoBehaviour
     public TMP_InputField durationInput;
     public TMP_InputField seedInput;
 
-    [Header("=== ENVIRONMENT DROPDOWNS ===")]
-    public TMP_Dropdown timeOfDayDropdown;
-    public TMP_Dropdown weatherDropdown;
+    [Header("=== TIME OF DAY BUTTONS (1-4) ===")]
+    public Button[] todButtons = new Button[4];
 
-    [Header("=== DISPLAY TEXT ===")]
+    [Header("=== WEATHER BUTTONS (1-4) ===")]
+    public Button[] weatherButtons = new Button[4];
+
+    [Header("=== MAP SELECTION BUTTONS ===")]
+    public Button[] mapButtons = new Button[3];
+
+    [Header("=== UI PANELS ===")]
+    [Tooltip("Setup Bar (Root) - the setup/config panel")]
+    public GameObject setupPanel;
+    [Tooltip("Main Controls (Root) - pause/step/restart panel")]
+    public GameObject controlsPanel;
+    [Tooltip("Start Button (Root) - hide after starting")]
+    public GameObject startButtonRoot;
+
+    [Header("=== DISPLAY TEXT (Optional) ===")]
     public TMP_Text statusText;
     public TMP_Text timeText;
     public TMP_Text statsText;
 
-    [Header("=== SPEED ===")]
+    [Header("=== SPEED (Optional) ===")]
     public Slider speedSlider;
     public TMP_Text speedLabel;
 
+    [Header("=== CONFIRMATION DIALOG ===")]
+    public ConfirmationDialog confirmationDialog;
+
+    [Header("=== SPAWN ZONE CONFIGURATOR ===")]
+    public SpawnZoneConfigurator spawnZoneConfigurator;
+
+    // State
     private bool isPaused = false;
+    private int selectedTimeOfDay = 0;
+    private int selectedWeather = 0;
+
+    // Colors for button selection highlighting
+    private Color selectedColor = new Color(0.8f, 0.65f, 0.3f);
+    private Color unselectedColor = new Color(0.6f, 0.5f, 0.35f);
 
     void Start()
     {
-        // Connect buttons
+        // Connect main buttons
         if (startBtn) startBtn.onClick.AddListener(OnStartClicked);
         if (pauseBtn) pauseBtn.onClick.AddListener(OnPauseClicked);
-        if (stopBtn) stopBtn.onClick.AddListener(OnStopClicked);
-        if (resetBtn) resetBtn.onClick.AddListener(OnResetClicked);
         if (stepBtn) stepBtn.onClick.AddListener(OnStepClicked);
+        if (resetBtn) resetBtn.onClick.AddListener(OnResetClicked);
 
-        // Connect environment dropdowns
-        if (timeOfDayDropdown)
-            timeOfDayDropdown.onValueChanged.AddListener(OnTimeOfDayChanged);
-        
-        if (weatherDropdown)
-            weatherDropdown.onValueChanged.AddListener(OnWeatherChanged);
+        // Connect Time of Day buttons
+        for (int i = 0; i < todButtons.Length; i++)
+        {
+            if (todButtons[i] != null)
+            {
+                int index = i;
+                todButtons[i].onClick.AddListener(() => OnTimeOfDaySelected(index));
+            }
+        }
+
+        // Connect Weather buttons
+        for (int i = 0; i < weatherButtons.Length; i++)
+        {
+            if (weatherButtons[i] != null)
+            {
+                int index = i;
+                weatherButtons[i].onClick.AddListener(() => OnWeatherSelected(index));
+            }
+        }
+
+        // Connect Map buttons
+        for (int i = 0; i < mapButtons.Length; i++)
+        {
+            if (mapButtons[i] != null)
+            {
+                int index = i;
+                mapButtons[i].onClick.AddListener(() => OnMapSelected(index));
+            }
+        }
 
         // Speed slider
         if (speedSlider)
@@ -79,8 +157,21 @@ public class SimpleButtons : MonoBehaviour
             speedSlider.onValueChanged.AddListener(OnSpeedChanged);
         }
 
+        // Initial UI state: show setup, hide controls
+        if (setupPanel) setupPanel.SetActive(true);
+        if (controlsPanel) controlsPanel.SetActive(false);
+        if (startButtonRoot) startButtonRoot.SetActive(true);
+
+        // Highlight default selections
+        UpdateTodButtonVisuals();
+        UpdateWeatherButtonVisuals();
+
         SetStatus("READY");
         UpdatePauseButtonText();
+
+        // Show spawn zones for setup
+        if (spawnZoneConfigurator != null)
+            spawnZoneConfigurator.ShowForSetup();
     }
 
     void Update()
@@ -95,19 +186,30 @@ public class SimpleButtons : MonoBehaviour
     void OnStartClicked()
     {
         Debug.Log("START clicked");
-        
+
         ApplySettingsFromInputs();
         ApplyEnvironmentSettings();
-        
+
+        // Lock spawn zones
+        if (spawnZoneConfigurator == null)
+            spawnZoneConfigurator = FindObjectOfType<SpawnZoneConfigurator>();
+
+        if (spawnZoneConfigurator != null)
+        {
+            spawnZoneConfigurator.SyncToSpawner();
+            spawnZoneConfigurator.Lock();
+        }
+
         if (engine) engine.StartRun();
-        
+
         isPaused = false;
         UpdatePauseButtonText();
         SetStatus("RUNNING");
 
-        // Hide setup, show sidebar
+        // Switch UI: hide setup, show controls
         if (setupPanel) setupPanel.SetActive(false);
-        if (sidebarPanel) sidebarPanel.SetActive(true);
+        if (startButtonRoot) startButtonRoot.SetActive(false);
+        if (controlsPanel) controlsPanel.SetActive(true);
 
         // Show live results panel
         if (liveResultsPanel) liveResultsPanel.ShowLiveResults();
@@ -116,7 +218,7 @@ public class SimpleButtons : MonoBehaviour
     void OnPauseClicked()
     {
         Debug.Log("PAUSE/RESUME clicked");
-        
+
         if (engine == null) return;
 
         if (isPaused)
@@ -131,55 +233,178 @@ public class SimpleButtons : MonoBehaviour
             isPaused = true;
             SetStatus("PAUSED");
         }
-        
+
         UpdatePauseButtonText();
-    }
-
-    void OnStopClicked()
-    {
-        Debug.Log("STOP clicked");
-        if (engine) engine.EndRun();
-        isPaused = false;
-        UpdatePauseButtonText();
-        SetStatus("STOPPED");
-
-        // Show final results
-        if (liveResultsPanel) liveResultsPanel.ShowFinalResults();
-    }
-
-    void OnResetClicked()
-    {
-        Debug.Log("RESET clicked");
-        
-        if (engine) engine.ResetToNewRun();
-        
-        isPaused = false;
-        UpdatePauseButtonText();
-        SetStatus("READY");
-
-        // Show setup panel, hide sidebar
-        if (setupPanel) setupPanel.SetActive(true);
-        if (sidebarPanel) sidebarPanel.SetActive(false);
-
-        // Hide live results, show setup
-        if (liveResultsPanel) liveResultsPanel.HideLiveResults();
     }
 
     void OnStepClicked()
     {
         Debug.Log("STEP clicked");
-        
+
+        // If first step, apply settings and switch to controls view
         if (engine != null && engine.GetTickCount() == 0)
         {
             ApplySettingsFromInputs();
             ApplyEnvironmentSettings();
-            
-            // Show live results on first step too
+
+            // Lock spawn zones
+            if (spawnZoneConfigurator == null)
+                spawnZoneConfigurator = FindObjectOfType<SpawnZoneConfigurator>();
+            if (spawnZoneConfigurator != null)
+            {
+                spawnZoneConfigurator.SyncToSpawner();
+                spawnZoneConfigurator.Lock();
+            }
+
+            // Switch UI
+            if (setupPanel) setupPanel.SetActive(false);
+            if (startButtonRoot) startButtonRoot.SetActive(false);
+            if (controlsPanel) controlsPanel.SetActive(true);
+
             if (liveResultsPanel) liveResultsPanel.ShowLiveResults();
         }
-        
+
         if (engine) engine.StepOnce();
         SetStatus("STEP");
+    }
+
+    void OnResetClicked()
+    {
+        Debug.Log("RESET clicked");
+
+        bool needsWarning = engine != null && engine.GetTickCount() > 0;
+
+        if (needsWarning && confirmationDialog != null)
+        {
+            confirmationDialog.Show(
+                "Reset Simulation?",
+                "This will lose your current run progress.",
+                onConfirm: DoReset
+            );
+        }
+        else
+        {
+            DoReset();
+        }
+    }
+
+    void DoReset()
+    {
+        // Show end of run panel if simulation ran
+        if (engine != null && engine.GetTickCount() > 0)
+        {
+            if (EndOfRunPanel.Instance != null)
+                EndOfRunPanel.Instance.Show();
+        }
+
+        if (engine) engine.ResetToNewRun();
+
+        isPaused = false;
+        UpdatePauseButtonText();
+        SetStatus("READY");
+
+        // Unlock spawn zones
+        if (spawnZoneConfigurator != null)
+            spawnZoneConfigurator.ShowForSetup();
+
+        // Switch UI: show setup, hide controls
+        if (setupPanel) setupPanel.SetActive(true);
+        if (startButtonRoot) startButtonRoot.SetActive(true);
+        if (controlsPanel) controlsPanel.SetActive(false);
+
+        // Hide live results
+        if (liveResultsPanel) liveResultsPanel.HideLiveResults();
+    }
+
+    // ===== TIME OF DAY / WEATHER / MAP BUTTONS =====
+
+    void OnTimeOfDaySelected(int index)
+    {
+        selectedTimeOfDay = index;
+        Debug.Log($"Time of Day: {GetTimeOfDayName(index)}");
+
+        if (EnvironmentSettings.Instance != null)
+            EnvironmentSettings.Instance.SetTimeOfDay(index);
+
+        UpdateTodButtonVisuals();
+    }
+
+    void OnWeatherSelected(int index)
+    {
+        selectedWeather = index;
+        Debug.Log($"Weather: {GetWeatherName(index)}");
+
+        if (EnvironmentSettings.Instance != null)
+            EnvironmentSettings.Instance.SetWeather(index);
+
+        UpdateWeatherButtonVisuals();
+    }
+
+    void OnMapSelected(int index)
+    {
+        Debug.Log($"Map selected: {index}");
+
+        if (MapManager.Instance != null)
+            MapManager.Instance.LoadMap(index);
+
+        if (spawnZoneConfigurator != null)
+            spawnZoneConfigurator.ShowForSetup();
+    }
+
+    string GetTimeOfDayName(int index)
+    {
+        switch (index)
+        {
+            case 0: return "Morning";
+            case 1: return "Afternoon";
+            case 2: return "Evening";
+            case 3: return "Night";
+            default: return "Unknown";
+        }
+    }
+
+    string GetWeatherName(int index)
+    {
+        switch (index)
+        {
+            case 0: return "Clear";
+            case 1: return "Cloudy";
+            case 2: return "Stormy";
+            case 3: return "Foggy";
+            default: return "Unknown";
+        }
+    }
+
+    void UpdateTodButtonVisuals()
+    {
+        for (int i = 0; i < todButtons.Length; i++)
+        {
+            if (todButtons[i] == null) continue;
+
+            Image img = todButtons[i].GetComponent<Image>();
+            if (img != null)
+                img.color = (i == selectedTimeOfDay) ? selectedColor : unselectedColor;
+
+            TMP_Text txt = todButtons[i].GetComponentInChildren<TMP_Text>();
+            if (txt != null)
+                txt.fontStyle = (i == selectedTimeOfDay) ? FontStyles.Bold | FontStyles.Underline : FontStyles.Normal;
+        }
+    }
+
+    void UpdateWeatherButtonVisuals()
+    {
+        for (int i = 0; i < weatherButtons.Length; i++)
+        {
+            if (weatherButtons[i] == null) continue;
+
+            Image img = weatherButtons[i].GetComponent<Image>();
+            if (img != null)
+                img.color = (i == selectedWeather) ? selectedColor : unselectedColor;
+
+            TMP_Text txt = weatherButtons[i].GetComponentInChildren<TMP_Text>();
+            if (txt != null)
+                txt.fontStyle = (i == selectedWeather) ? FontStyles.Bold | FontStyles.Underline : FontStyles.Normal;
+        }
     }
 
     void OnSpeedChanged(float value)
@@ -187,34 +412,17 @@ public class SimpleButtons : MonoBehaviour
         if (engine) engine.SetTickInterval(1f / value);
     }
 
-    // ===== ENVIRONMENT HANDLERS =====
-
-    void OnTimeOfDayChanged(int index)
-    {
-        if (EnvironmentSettings.Instance != null)
-            EnvironmentSettings.Instance.SetTimeOfDay(index);
-    }
-
-    void OnWeatherChanged(int index)
-    {
-        if (EnvironmentSettings.Instance != null)
-            EnvironmentSettings.Instance.SetWeather(index);
-    }
+    // ===== APPLY SETTINGS =====
 
     void ApplyEnvironmentSettings()
     {
         if (EnvironmentSettings.Instance == null) return;
 
-        if (timeOfDayDropdown)
-            EnvironmentSettings.Instance.SetTimeOfDay(timeOfDayDropdown.value);
-        
-        if (weatherDropdown)
-            EnvironmentSettings.Instance.SetWeather(weatherDropdown.value);
+        EnvironmentSettings.Instance.SetTimeOfDay(selectedTimeOfDay);
+        EnvironmentSettings.Instance.SetWeather(selectedWeather);
 
         Debug.Log($"Environment: {EnvironmentSettings.Instance.GetConditionsSummary()}");
     }
-
-    // ===== APPLY SETTINGS =====
 
     void ApplySettingsFromInputs()
     {
@@ -231,7 +439,7 @@ public class SimpleButtons : MonoBehaviour
         engine.maxTicks = ParseInt(durationInput, 0);
         engine.runSeed = ParseInt(seedInput, 12345);
 
-        Debug.Log($"Applied: Merchants={engine.initialMerchants}, Pirates={engine.initialPirates}, Security={engine.initialSecurity}");
+        Debug.Log($"Applied: M={engine.initialMerchants}, P={engine.initialPirates}, S={engine.initialSecurity}");
     }
 
     int ParseInt(TMP_InputField input, int defaultValue)
@@ -248,7 +456,7 @@ public class SimpleButtons : MonoBehaviour
     void UpdatePauseButtonText()
     {
         if (pauseButtonText)
-            pauseButtonText.text = isPaused ? "RESUME" : "PAUSE";
+            pauseButtonText.text = isPaused ? "Resume" : "Pause";
     }
 
     void SetStatus(string text)
@@ -256,7 +464,7 @@ public class SimpleButtons : MonoBehaviour
         if (statusText)
         {
             statusText.text = text;
-            
+
             switch (text)
             {
                 case "RUNNING": statusText.color = Color.green; break;
@@ -280,7 +488,7 @@ public class SimpleButtons : MonoBehaviour
         int ticks = engine.GetTickCount();
         int ticksPerHour = 60;
         int startHour = 6;
-        
+
         if (EnvironmentSettings.Instance != null)
         {
             switch (EnvironmentSettings.Instance.timeOfDay)
@@ -291,7 +499,7 @@ public class SimpleButtons : MonoBehaviour
                 case TimeOfDay.Night: startHour = 22; break;
             }
         }
-        
+
         int totalMinutes = (ticks * 60) / Mathf.Max(1, ticksPerHour);
         int hours = (startHour + (totalMinutes / 60)) % 24;
         int minutes = totalMinutes % 60;
