@@ -259,7 +259,7 @@ public class EndOfRunPanel : MonoBehaviour
         panelObject.transform.SetParent(canvasObject.transform, false);
 
         RectTransform panelRect = panelObject.AddComponent<RectTransform>();
-        panelRect.sizeDelta = new Vector2(450, 480);
+        panelRect.sizeDelta = new Vector2(450, 540);
         panelRect.anchoredPosition = Vector2.zero;
 
         Image panelBg = panelObject.AddComponent<Image>();
