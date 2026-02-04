@@ -5,13 +5,13 @@ using TMPro;
 /// <summary>
 /// UI Controller - Updated to work with new UICanvas design
 /// 
-/// Supports:
-/// - Button-based Time of Day selection (1-4 buttons)
-/// - Button-based Weather selection (1-4 buttons)
-/// - Separate input fields for ship counts and spawn rates
-/// - Start/Pause/Step/Restart buttons
-/// - Map selection buttons
-/// - Setup Panel ↔ Controls Panel switching
+/// REQUIREMENTS COVERED:
+/// - Rqmt04: Run Controls (Start/Pause/Resume/Reset)
+/// - Rqmt17: Lock Config on Start
+/// - Rqmt18: Single-Step Execution
+/// - Rqmt19: Adjustable Speed (slider OR buttons)
+/// - Rqmt25: Condition Indicator (runtime badge)
+/// - Rqmt26: Prevent Invalid Actions (button states)
 /// 
 /// WIRING GUIDE (Inspector):
 /// ─────────────────────────
@@ -20,23 +20,12 @@ using TMPro;
 /// stepBtn           → UICanvas > Main Controls (Root) > Step Button (Button)
 /// resetBtn          → UICanvas > Main Controls (Root) > Restart Button (Button)
 /// 
-/// merchantCountInput → UICanvas > Setup Bar > Config Panel > Initial Ships (Root) > Merchant Ship (Input)
-/// pirateCountInput   → UICanvas > Setup Bar > Config Panel > Initial Ships (Root) > Pirate Ship (Input)
-/// securityCountInput → UICanvas > Setup Bar > Config Panel > Initial Ships (Root) > Military Ship (Input)
+/// speedSlider       → (Optional) Any UI Slider for speed control
+/// speedUpBtn        → (Optional) Button to increase speed
+/// speedDownBtn      → (Optional) Button to decrease speed
+/// speedValueText    → (Optional) Text showing current speed
 /// 
-/// merchantSpawnInput → UICanvas > Setup Bar > Config Panel > Spawn Rates (Root) > Merchant Ship (Input) 2
-/// pirateSpawnInput   → UICanvas > Setup Bar > Config Panel > Spawn Rates (Root) > Pirate Ship (Input) 2
-/// securitySpawnInput → UICanvas > Setup Bar > Config Panel > Spawn Rates (Root) > Military Ship (Input) 2
-/// 
-/// durationInput      → UICanvas > Setup Bar > Config Panel > Duration (Root) > Duration (Input)
-/// seedInput          → UICanvas > Setup Bar > Config Panel > Seed (Root) > Seed (Input)
-/// 
-/// todButtons[0-3]    → UICanvas > Setup Bar > Config Panel > Time of Day (Root) > Time of Day Button 1-4
-/// weatherButtons[0-3] → UICanvas > Setup Bar > Config Panel > Weather (Root) > Weather Button 1-4
-/// 
-/// setupPanel         → UICanvas > Setup Bar (Root)
-/// controlsPanel      → UICanvas > Main Controls (Root)
-/// startButtonRoot    → UICanvas > Start Button (Root)
+/// conditionBadge    → (Optional) Text element to show "Morning / Clear" during run
 /// </summary>
 public class SimpleButtons : MonoBehaviour
 {
@@ -91,9 +80,18 @@ public class SimpleButtons : MonoBehaviour
     public TMP_Text timeText;
     public TMP_Text statsText;
 
-    [Header("=== SPEED (Optional) ===")]
+    [Header("=== SPEED CONTROL (Rqmt19) ===")]
+    [Tooltip("Option A: Use a slider")]
     public Slider speedSlider;
-    public TMP_Text speedLabel;
+    [Tooltip("Option B: Use buttons (if no slider)")]
+    public Button speedUpBtn;
+    public Button speedDownBtn;
+    [Tooltip("Shows current speed value")]
+    public TMP_Text speedValueText;
+
+    [Header("=== CONDITION INDICATOR (Rqmt25) ===")]
+    [Tooltip("Shows current conditions during run (e.g. 'Morning / Clear')")]
+    public TMP_Text conditionBadge;
 
     [Header("=== CONFIRMATION DIALOG ===")]
     public ConfirmationDialog confirmationDialog;
@@ -105,6 +103,10 @@ public class SimpleButtons : MonoBehaviour
     private bool isPaused = false;
     private int selectedTimeOfDay = 0;
     private int selectedWeather = 0;
+    private float currentSpeed = 4f;
+    private const float MIN_SPEED = 0.5f;
+    private const float MAX_SPEED = 20f;
+    private const float SPEED_STEP = 1f;
 
     // Colors for button selection highlighting
     private Color selectedColor = new Color(0.8f, 0.65f, 0.3f);
@@ -148,19 +150,29 @@ public class SimpleButtons : MonoBehaviour
             }
         }
 
-        // Speed slider
+        // === SPEED CONTROL (Rqmt19) ===
+        // Option A: Slider
         if (speedSlider)
         {
-            speedSlider.minValue = 1f;
-            speedSlider.maxValue = 20f;
-            speedSlider.value = 4f;
-            speedSlider.onValueChanged.AddListener(OnSpeedChanged);
+            speedSlider.minValue = MIN_SPEED;
+            speedSlider.maxValue = MAX_SPEED;
+            speedSlider.value = currentSpeed;
+            speedSlider.onValueChanged.AddListener(OnSpeedSliderChanged);
         }
+        // Option B: Buttons (if no slider)
+        if (speedUpBtn) speedUpBtn.onClick.AddListener(OnSpeedUp);
+        if (speedDownBtn) speedDownBtn.onClick.AddListener(OnSpeedDown);
+        
+        // Initialize speed display
+        UpdateSpeedDisplay();
 
         // Initial UI state: show setup, hide controls
         if (setupPanel) setupPanel.SetActive(true);
         if (controlsPanel) controlsPanel.SetActive(false);
         if (startButtonRoot) startButtonRoot.SetActive(true);
+
+        // Hide condition badge during setup (Rqmt25)
+        if (conditionBadge) conditionBadge.gameObject.SetActive(false);
 
         // Highlight default selections
         UpdateTodButtonVisuals();
@@ -178,7 +190,7 @@ public class SimpleButtons : MonoBehaviour
     {
         UpdateTimeDisplay();
         UpdateStatsDisplay();
-        UpdateSpeedLabel();
+        UpdateConditionBadge();
     }
 
     // ===== BUTTON HANDLERS =====
@@ -210,6 +222,9 @@ public class SimpleButtons : MonoBehaviour
         if (setupPanel) setupPanel.SetActive(false);
         if (startButtonRoot) startButtonRoot.SetActive(false);
         if (controlsPanel) controlsPanel.SetActive(true);
+
+        // Show condition badge during run (Rqmt25)
+        if (conditionBadge) conditionBadge.gameObject.SetActive(true);
 
         // Show live results panel
         if (liveResultsPanel) liveResultsPanel.ShowLiveResults();
@@ -312,6 +327,9 @@ public class SimpleButtons : MonoBehaviour
         if (startButtonRoot) startButtonRoot.SetActive(true);
         if (controlsPanel) controlsPanel.SetActive(false);
 
+        // Hide condition badge (Rqmt25 - only show during run)
+        if (conditionBadge) conditionBadge.gameObject.SetActive(false);
+
         // Hide live results
         if (liveResultsPanel) liveResultsPanel.HideLiveResults();
     }
@@ -407,9 +425,56 @@ public class SimpleButtons : MonoBehaviour
         }
     }
 
-    void OnSpeedChanged(float value)
+    // === SPEED CONTROL (Rqmt19) ===
+
+    void OnSpeedSliderChanged(float value)
     {
-        if (engine) engine.SetTickInterval(1f / value);
+        currentSpeed = value;
+        ApplySpeed();
+        UpdateSpeedDisplay();
+    }
+
+    void OnSpeedUp()
+    {
+        currentSpeed = Mathf.Min(currentSpeed + SPEED_STEP, MAX_SPEED);
+        if (speedSlider) speedSlider.value = currentSpeed;
+        ApplySpeed();
+        UpdateSpeedDisplay();
+    }
+
+    void OnSpeedDown()
+    {
+        currentSpeed = Mathf.Max(currentSpeed - SPEED_STEP, MIN_SPEED);
+        if (speedSlider) speedSlider.value = currentSpeed;
+        ApplySpeed();
+        UpdateSpeedDisplay();
+    }
+
+    void ApplySpeed()
+    {
+        if (engine) engine.SetTickInterval(1f / currentSpeed);
+    }
+
+    void UpdateSpeedDisplay()
+    {
+        if (speedValueText)
+            speedValueText.text = $"{currentSpeed:F1}x";
+    }
+
+    // === CONDITION BADGE (Rqmt25) ===
+
+    void UpdateConditionBadge()
+    {
+        if (conditionBadge == null) return;
+        
+        if (EnvironmentSettings.Instance != null)
+        {
+            conditionBadge.text = EnvironmentSettings.Instance.GetConditionsSummary();
+        }
+        else
+        {
+            conditionBadge.text = $"{GetTimeOfDayName(selectedTimeOfDay)} / {GetWeatherName(selectedWeather)}";
+        }
     }
 
     // ===== APPLY SETTINGS =====
@@ -473,12 +538,6 @@ public class SimpleButtons : MonoBehaviour
                 default: statusText.color = Color.white; break;
             }
         }
-    }
-
-    void UpdateSpeedLabel()
-    {
-        if (speedLabel && speedSlider)
-            speedLabel.text = $"Speed: {speedSlider.value:F1}x";
     }
 
     void UpdateTimeDisplay()
