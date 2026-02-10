@@ -103,6 +103,7 @@ public class ShipSpawner : MonoBehaviour
 
     /// <summary>
     /// Get a random point within the spawn zone for this ship type.
+    /// Validates the point is in water, retries up to maxAttempts times.
     /// </summary>
     private Vector2 GetRandomSpawnPoint(ShipType type, System.Random rng)
     {
@@ -129,11 +130,49 @@ public class ShipSpawner : MonoBehaviour
                 break;
         }
 
-        // Random point within rectangle
-        float x = center.x + (float)(rng.NextDouble() - 0.5) * size.x;
-        float y = center.y + (float)(rng.NextDouble() - 0.5) * size.y;
+        // Try to find a valid water spawn point
+        int maxAttempts = 20;
+        for (int i = 0; i < maxAttempts; i++)
+        {
+            // Random point within rectangle
+            float x = center.x + (float)(rng.NextDouble() - 0.5) * size.x;
+            float y = center.y + (float)(rng.NextDouble() - 0.5) * size.y;
+            Vector2 point = new Vector2(x, y);
 
-        return new Vector2(x, y);
+            // Check if it's in water
+            if (MapColorSampler.Instance == null || MapColorSampler.Instance.IsWater(point))
+            {
+                return point;
+            }
+        }
+
+        // Fallback: couldn't find water in zone, try to find nearest water to center
+        Debug.LogWarning($"ShipSpawner: Could not find water spawn point for {type} after {maxAttempts} attempts. Using center.");
+        
+        if (MapColorSampler.Instance != null && !MapColorSampler.Instance.IsWater(center))
+        {
+            // Try to nudge toward water
+            Vector2[] offsets = {
+                new Vector2(1, 0), new Vector2(-1, 0),
+                new Vector2(0, 1), new Vector2(0, -1),
+                new Vector2(1, 1), new Vector2(-1, -1),
+                new Vector2(1, -1), new Vector2(-1, 1)
+            };
+            
+            for (float dist = 0.5f; dist < 5f; dist += 0.5f)
+            {
+                foreach (var offset in offsets)
+                {
+                    Vector2 testPoint = center + offset * dist;
+                    if (MapColorSampler.Instance.IsWater(testPoint))
+                    {
+                        return testPoint;
+                    }
+                }
+            }
+        }
+
+        return center;
     }
 
     // ===== CONVENIENCE METHODS =====

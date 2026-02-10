@@ -3,30 +3,51 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// UI Controller with LiveResultsPanel integration
-/// Updated with confirmation dialog for reset (Req 1.9)
+/// UI Controller - Updated to work with new UICanvas design
+/// 
+/// REQUIREMENTS COVERED:
+/// - Rqmt04: Run Controls (Start/Pause/Resume/Reset)
+/// - Rqmt17: Lock Config on Start
+/// - Rqmt18: Single-Step Execution
+/// - Rqmt19: Adjustable Speed (slider OR buttons)
+/// - Rqmt25: Condition Indicator (runtime badge)
+/// - Rqmt26: Prevent Invalid Actions (button states)
+/// 
+/// WIRING GUIDE (Inspector):
+/// ─────────────────────────
+/// startBtn          → UICanvas > Start Button (Root) > Start Button (Shadow) > Start Button (Button)
+/// pauseBtn          → UICanvas > Main Controls (Root) > Pause Button (Button)
+/// stepBtn           → UICanvas > Main Controls (Root) > Step Button (Button)
+/// resetBtn          → UICanvas > Main Controls (Root) > Restart Button (Button)
+/// 
+/// speedSlider       → (Optional) Any UI Slider for speed control
+/// speedUpBtn        → (Optional) Button to increase speed
+/// speedDownBtn      → (Optional) Button to decrease speed
+/// speedValueText    → (Optional) Text showing current speed
+/// 
+/// conditionBadge    → (Optional) Text element to show "Morning / Clear" during run
 /// </summary>
 public class SimpleButtons : MonoBehaviour
 {
     [Header("=== BUTTONS ===")]
     public Button startBtn;
     public Button pauseBtn;
-    public Button stopBtn;
-    public Button resetBtn;
     public Button stepBtn;
+    public Button resetBtn;
 
-    [Header("=== BUTTON TEXT ===")]
+    [Header("=== PAUSE BUTTON TEXT ===")]
     public TMP_Text pauseButtonText;
 
     [Header("=== REFERENCES ===")]
     public SimulationEngine engine;
-    public GameObject setupPanel;
-    public GameObject sidebarPanel;
 
-    [Header("=== LIVE RESULTS ===")]
+    [Header("=== LIVE STATS (Use one or the other) ===")]
+    [Tooltip("Old style: Separate panel that replaces setup")]
     public LiveResultsPanel liveResultsPanel;
+    [Tooltip("New style: Self-contained overlay (recommended)")]
+    public RuntimeStatsOverlay runtimeStatsOverlay;
 
-    [Header("=== SHIP COUNT INPUTS ===")]
+    [Header("=== SHIP COUNT INPUTS (Initial Ships) ===")]
     public TMP_InputField merchantCountInput;
     public TMP_InputField pirateCountInput;
     public TMP_InputField securityCountInput;
@@ -40,18 +61,40 @@ public class SimpleButtons : MonoBehaviour
     public TMP_InputField durationInput;
     public TMP_InputField seedInput;
 
-    [Header("=== ENVIRONMENT DROPDOWNS ===")]
-    public TMP_Dropdown timeOfDayDropdown;
-    public TMP_Dropdown weatherDropdown;
+    [Header("=== TIME OF DAY BUTTONS (1-4) ===")]
+    public Button[] todButtons = new Button[4];
 
-    [Header("=== DISPLAY TEXT ===")]
+    [Header("=== WEATHER BUTTONS (1-4) ===")]
+    public Button[] weatherButtons = new Button[4];
+
+    [Header("=== MAP SELECTION BUTTONS ===")]
+    public Button[] mapButtons = new Button[3];
+
+    [Header("=== UI PANELS ===")]
+    [Tooltip("Setup Bar (Root) - the setup/config panel")]
+    public GameObject setupPanel;
+    [Tooltip("Main Controls (Root) - pause/step/restart panel")]
+    public GameObject controlsPanel;
+    [Tooltip("Start Button (Root) - hide after starting")]
+    public GameObject startButtonRoot;
+
+    [Header("=== DISPLAY TEXT (Optional) ===")]
     public TMP_Text statusText;
     public TMP_Text timeText;
     public TMP_Text statsText;
 
-    [Header("=== SPEED ===")]
+    [Header("=== SPEED CONTROL (Rqmt19) ===")]
+    [Tooltip("Option A: Use a slider")]
     public Slider speedSlider;
-    public TMP_Text speedLabel;
+    [Tooltip("Option B: Use buttons (if no slider)")]
+    public Button speedUpBtn;
+    public Button speedDownBtn;
+    [Tooltip("Shows current speed value")]
+    public TMP_Text speedValueText;
+
+    [Header("=== CONDITION INDICATOR (Rqmt25) ===")]
+    [Tooltip("Shows current conditions during run (e.g. 'Morning / Clear')")]
+    public TMP_Text conditionBadge;
 
     [Header("=== CONFIRMATION DIALOG ===")]
     public ConfirmationDialog confirmationDialog;
@@ -59,48 +102,98 @@ public class SimpleButtons : MonoBehaviour
     [Header("=== SPAWN ZONE CONFIGURATOR ===")]
     public SpawnZoneConfigurator spawnZoneConfigurator;
 
+    // State
     private bool isPaused = false;
+    private int selectedTimeOfDay = 0;
+    private int selectedWeather = 0;
+    private float currentSpeed = 4f;
+    private const float MIN_SPEED = 0.5f;
+    private const float MAX_SPEED = 20f;
+    private const float SPEED_STEP = 1f;
+
+    // Colors for button selection highlighting
+    private Color selectedColor = new Color(0.8f, 0.65f, 0.3f);
+    private Color unselectedColor = new Color(0.6f, 0.5f, 0.35f);
 
     void Start()
     {
-        // Connect buttons
+        // Connect main buttons
         if (startBtn) startBtn.onClick.AddListener(OnStartClicked);
         if (pauseBtn) pauseBtn.onClick.AddListener(OnPauseClicked);
-        if (stopBtn) stopBtn.onClick.AddListener(OnStopClicked);
-        if (resetBtn) resetBtn.onClick.AddListener(OnResetClicked);
         if (stepBtn) stepBtn.onClick.AddListener(OnStepClicked);
+        if (resetBtn) resetBtn.onClick.AddListener(OnResetClicked);
 
-        // Connect environment dropdowns
-        if (timeOfDayDropdown)
-            timeOfDayDropdown.onValueChanged.AddListener(OnTimeOfDayChanged);
-        
-        if (weatherDropdown)
-            weatherDropdown.onValueChanged.AddListener(OnWeatherChanged);
+        // Connect Time of Day buttons
+        for (int i = 0; i < todButtons.Length; i++)
+        {
+            if (todButtons[i] != null)
+            {
+                int index = i;
+                todButtons[i].onClick.AddListener(() => OnTimeOfDaySelected(index));
+            }
+        }
 
-        // Speed slider
+        // Connect Weather buttons
+        for (int i = 0; i < weatherButtons.Length; i++)
+        {
+            if (weatherButtons[i] != null)
+            {
+                int index = i;
+                weatherButtons[i].onClick.AddListener(() => OnWeatherSelected(index));
+            }
+        }
+
+        // Connect Map buttons
+        for (int i = 0; i < mapButtons.Length; i++)
+        {
+            if (mapButtons[i] != null)
+            {
+                int index = i;
+                mapButtons[i].onClick.AddListener(() => OnMapSelected(index));
+            }
+        }
+
+        // === SPEED CONTROL (Rqmt19) ===
+        // Option A: Slider
         if (speedSlider)
         {
-            speedSlider.minValue = 1f;
-            speedSlider.maxValue = 20f;
-            speedSlider.value = 4f;
-            speedSlider.onValueChanged.AddListener(OnSpeedChanged);
+            speedSlider.minValue = MIN_SPEED;
+            speedSlider.maxValue = MAX_SPEED;
+            speedSlider.value = currentSpeed;
+            speedSlider.onValueChanged.AddListener(OnSpeedSliderChanged);
         }
+        // Option B: Buttons (if no slider)
+        if (speedUpBtn) speedUpBtn.onClick.AddListener(OnSpeedUp);
+        if (speedDownBtn) speedDownBtn.onClick.AddListener(OnSpeedDown);
+        
+        // Initialize speed display
+        UpdateSpeedDisplay();
+
+        // Initial UI state: show setup, hide controls
+        if (setupPanel) setupPanel.SetActive(true);
+        if (controlsPanel) controlsPanel.SetActive(false);
+        if (startButtonRoot) startButtonRoot.SetActive(true);
+
+        // Hide condition badge during setup (Rqmt25)
+        if (conditionBadge) conditionBadge.gameObject.SetActive(false);
+
+        // Highlight default selections
+        UpdateTodButtonVisuals();
+        UpdateWeatherButtonVisuals();
 
         SetStatus("READY");
         UpdatePauseButtonText();
-        
+
         // Show spawn zones for setup
         if (spawnZoneConfigurator != null)
-        {
             spawnZoneConfigurator.ShowForSetup();
-        }
     }
 
     void Update()
     {
         UpdateTimeDisplay();
         UpdateStatsDisplay();
-        UpdateSpeedLabel();
+        UpdateConditionBadge();
     }
 
     // ===== BUTTON HANDLERS =====
@@ -108,46 +201,50 @@ public class SimpleButtons : MonoBehaviour
     void OnStartClicked()
     {
         Debug.Log("START clicked");
-        
+
         ApplySettingsFromInputs();
         ApplyEnvironmentSettings();
-        
-        // Lock spawn zones - no more editing during simulation
+
+        // Lock spawn zones
         if (spawnZoneConfigurator == null)
-        {
-            // Try to find it
             spawnZoneConfigurator = FindObjectOfType<SpawnZoneConfigurator>();
-        }
-        
+
         if (spawnZoneConfigurator != null)
         {
-            Debug.Log("START: Locking spawn zone configurator");
-            spawnZoneConfigurator.SyncToSpawner();  // Save final positions
-            spawnZoneConfigurator.Lock();           // Hides everything
+            spawnZoneConfigurator.SyncToSpawner();
+            spawnZoneConfigurator.Lock();
         }
-        else
-        {
-            Debug.LogWarning("START: SpawnZoneConfigurator is NULL - zones won't hide!");
-        }
-        
+
         if (engine) engine.StartRun();
-        
+
         isPaused = false;
         UpdatePauseButtonText();
         SetStatus("RUNNING");
 
-        // Hide setup, show sidebar
+        // Switch UI: hide setup, show controls
         if (setupPanel) setupPanel.SetActive(false);
-        if (sidebarPanel) sidebarPanel.SetActive(true);
+        if (startButtonRoot) startButtonRoot.SetActive(false);
+        if (controlsPanel) controlsPanel.SetActive(true);
 
-        // Show live results panel
+        // Show condition badge during run (Rqmt25)
+        if (conditionBadge) conditionBadge.gameObject.SetActive(true);
+
+        // Show live stats (supports both old and new style)
         if (liveResultsPanel) liveResultsPanel.ShowLiveResults();
+        if (runtimeStatsOverlay) runtimeStatsOverlay.Show();
+        
+        // Auto-find RuntimeStatsOverlay if not assigned
+        if (runtimeStatsOverlay == null)
+        {
+            runtimeStatsOverlay = FindObjectOfType<RuntimeStatsOverlay>();
+            if (runtimeStatsOverlay != null) runtimeStatsOverlay.Show();
+        }
     }
 
     void OnPauseClicked()
     {
         Debug.Log("PAUSE/RESUME clicked");
-        
+
         if (engine == null) return;
 
         if (isPaused)
@@ -162,29 +259,47 @@ public class SimpleButtons : MonoBehaviour
             isPaused = true;
             SetStatus("PAUSED");
         }
-        
+
         UpdatePauseButtonText();
     }
 
-    void OnStopClicked()
+    void OnStepClicked()
     {
-        Debug.Log("STOP clicked");
-        if (engine) engine.EndRun();
-        isPaused = false;
-        UpdatePauseButtonText();
-        SetStatus("STOPPED");
+        Debug.Log("STEP clicked");
 
-        // Show final results
-        if (liveResultsPanel) liveResultsPanel.ShowFinalResults();
+        // If first step, apply settings and switch to controls view
+        if (engine != null && engine.GetTickCount() == 0)
+        {
+            ApplySettingsFromInputs();
+            ApplyEnvironmentSettings();
+
+            // Lock spawn zones
+            if (spawnZoneConfigurator == null)
+                spawnZoneConfigurator = FindObjectOfType<SpawnZoneConfigurator>();
+            if (spawnZoneConfigurator != null)
+            {
+                spawnZoneConfigurator.SyncToSpawner();
+                spawnZoneConfigurator.Lock();
+            }
+
+            // Switch UI
+            if (setupPanel) setupPanel.SetActive(false);
+            if (startButtonRoot) startButtonRoot.SetActive(false);
+            if (controlsPanel) controlsPanel.SetActive(true);
+
+            if (liveResultsPanel) liveResultsPanel.ShowLiveResults();
+        }
+
+        if (engine) engine.StepOnce();
+        SetStatus("STEP");
     }
 
     void OnResetClicked()
     {
         Debug.Log("RESET clicked");
-        
-        // Check if simulation has started (needs warning)
+
         bool needsWarning = engine != null && engine.GetTickCount() > 0;
-        
+
         if (needsWarning && confirmationDialog != null)
         {
             confirmationDialog.Show(
@@ -199,90 +314,193 @@ public class SimpleButtons : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Actually performs the reset after confirmation
-    /// </summary>
     void DoReset()
     {
-        // Show end of run panel first (if simulation ran)
+        // Show end of run panel if simulation ran
         if (engine != null && engine.GetTickCount() > 0)
         {
             if (EndOfRunPanel.Instance != null)
-            {
                 EndOfRunPanel.Instance.Show();
-            }
         }
-        
+
         if (engine) engine.ResetToNewRun();
-        
+
         isPaused = false;
         UpdatePauseButtonText();
         SetStatus("READY");
 
-        // Unlock spawn zones for editing again
+        // Unlock spawn zones
         if (spawnZoneConfigurator != null)
-        {
-            spawnZoneConfigurator.ShowForSetup();  // Shows and validates positions
-        }
+            spawnZoneConfigurator.ShowForSetup();
 
-        // Show setup panel, hide sidebar
+        // Switch UI: show setup, hide controls
         if (setupPanel) setupPanel.SetActive(true);
-        if (sidebarPanel) sidebarPanel.SetActive(false);
+        if (startButtonRoot) startButtonRoot.SetActive(true);
+        if (controlsPanel) controlsPanel.SetActive(false);
 
-        // Hide live results
+        // Hide condition badge (Rqmt25 - only show during run)
+        if (conditionBadge) conditionBadge.gameObject.SetActive(false);
+
+        // Hide live stats (both old and new style)
         if (liveResultsPanel) liveResultsPanel.HideLiveResults();
+        if (runtimeStatsOverlay) runtimeStatsOverlay.Hide();
+        if (RuntimeStatsOverlay.Instance != null) RuntimeStatsOverlay.Instance.Hide();
     }
 
-    void OnStepClicked()
-    {
-        Debug.Log("STEP clicked");
-        
-        if (engine != null && engine.GetTickCount() == 0)
-        {
-            ApplySettingsFromInputs();
-            ApplyEnvironmentSettings();
-            
-            // Show live results on first step too
-            if (liveResultsPanel) liveResultsPanel.ShowLiveResults();
-        }
-        
-        if (engine) engine.StepOnce();
-        SetStatus("STEP");
-    }
+    // ===== TIME OF DAY / WEATHER / MAP BUTTONS =====
 
-    void OnSpeedChanged(float value)
+    void OnTimeOfDaySelected(int index)
     {
-        if (engine) engine.SetTickInterval(1f / value);
-    }
+        selectedTimeOfDay = index;
+        Debug.Log($"Time of Day: {GetTimeOfDayName(index)}");
 
-    // ===== ENVIRONMENT HANDLERS =====
-
-    void OnTimeOfDayChanged(int index)
-    {
         if (EnvironmentSettings.Instance != null)
             EnvironmentSettings.Instance.SetTimeOfDay(index);
+
+        UpdateTodButtonVisuals();
     }
 
-    void OnWeatherChanged(int index)
+    void OnWeatherSelected(int index)
     {
+        selectedWeather = index;
+        Debug.Log($"Weather: {GetWeatherName(index)}");
+
         if (EnvironmentSettings.Instance != null)
             EnvironmentSettings.Instance.SetWeather(index);
+
+        UpdateWeatherButtonVisuals();
     }
+
+    void OnMapSelected(int index)
+    {
+        Debug.Log($"Map selected: {index}");
+
+        if (MapManager.Instance != null)
+            MapManager.Instance.LoadMap(index);
+
+        if (spawnZoneConfigurator != null)
+            spawnZoneConfigurator.ShowForSetup();
+    }
+
+    string GetTimeOfDayName(int index)
+    {
+        switch (index)
+        {
+            case 0: return "Morning";
+            case 1: return "Afternoon";
+            case 2: return "Evening";
+            case 3: return "Night";
+            default: return "Unknown";
+        }
+    }
+
+    string GetWeatherName(int index)
+    {
+        switch (index)
+        {
+            case 0: return "Clear";
+            case 1: return "Cloudy";
+            case 2: return "Stormy";
+            case 3: return "Foggy";
+            default: return "Unknown";
+        }
+    }
+
+    void UpdateTodButtonVisuals()
+    {
+        for (int i = 0; i < todButtons.Length; i++)
+        {
+            if (todButtons[i] == null) continue;
+
+            Image img = todButtons[i].GetComponent<Image>();
+            if (img != null)
+                img.color = (i == selectedTimeOfDay) ? selectedColor : unselectedColor;
+
+            TMP_Text txt = todButtons[i].GetComponentInChildren<TMP_Text>();
+            if (txt != null)
+                txt.fontStyle = (i == selectedTimeOfDay) ? FontStyles.Bold | FontStyles.Underline : FontStyles.Normal;
+        }
+    }
+
+    void UpdateWeatherButtonVisuals()
+    {
+        for (int i = 0; i < weatherButtons.Length; i++)
+        {
+            if (weatherButtons[i] == null) continue;
+
+            Image img = weatherButtons[i].GetComponent<Image>();
+            if (img != null)
+                img.color = (i == selectedWeather) ? selectedColor : unselectedColor;
+
+            TMP_Text txt = weatherButtons[i].GetComponentInChildren<TMP_Text>();
+            if (txt != null)
+                txt.fontStyle = (i == selectedWeather) ? FontStyles.Bold | FontStyles.Underline : FontStyles.Normal;
+        }
+    }
+
+    // === SPEED CONTROL (Rqmt19) ===
+
+    void OnSpeedSliderChanged(float value)
+    {
+        currentSpeed = value;
+        ApplySpeed();
+        UpdateSpeedDisplay();
+    }
+
+    void OnSpeedUp()
+    {
+        currentSpeed = Mathf.Min(currentSpeed + SPEED_STEP, MAX_SPEED);
+        if (speedSlider) speedSlider.value = currentSpeed;
+        ApplySpeed();
+        UpdateSpeedDisplay();
+    }
+
+    void OnSpeedDown()
+    {
+        currentSpeed = Mathf.Max(currentSpeed - SPEED_STEP, MIN_SPEED);
+        if (speedSlider) speedSlider.value = currentSpeed;
+        ApplySpeed();
+        UpdateSpeedDisplay();
+    }
+
+    void ApplySpeed()
+    {
+        if (engine) engine.SetTickInterval(1f / currentSpeed);
+    }
+
+    void UpdateSpeedDisplay()
+    {
+        if (speedValueText)
+            speedValueText.text = $"{currentSpeed:F1}x";
+    }
+
+    // === CONDITION BADGE (Rqmt25) ===
+
+    void UpdateConditionBadge()
+    {
+        if (conditionBadge == null) return;
+        
+        if (EnvironmentSettings.Instance != null)
+        {
+            conditionBadge.text = EnvironmentSettings.Instance.GetConditionsSummary();
+        }
+        else
+        {
+            conditionBadge.text = $"{GetTimeOfDayName(selectedTimeOfDay)} / {GetWeatherName(selectedWeather)}";
+        }
+    }
+
+    // ===== APPLY SETTINGS =====
 
     void ApplyEnvironmentSettings()
     {
         if (EnvironmentSettings.Instance == null) return;
 
-        if (timeOfDayDropdown)
-            EnvironmentSettings.Instance.SetTimeOfDay(timeOfDayDropdown.value);
-        
-        if (weatherDropdown)
-            EnvironmentSettings.Instance.SetWeather(weatherDropdown.value);
+        EnvironmentSettings.Instance.SetTimeOfDay(selectedTimeOfDay);
+        EnvironmentSettings.Instance.SetWeather(selectedWeather);
 
         Debug.Log($"Environment: {EnvironmentSettings.Instance.GetConditionsSummary()}");
     }
-
-    // ===== APPLY SETTINGS =====
 
     void ApplySettingsFromInputs()
     {
@@ -299,7 +517,7 @@ public class SimpleButtons : MonoBehaviour
         engine.maxTicks = ParseInt(durationInput, 0);
         engine.runSeed = ParseInt(seedInput, 12345);
 
-        Debug.Log($"Applied: Merchants={engine.initialMerchants}, Pirates={engine.initialPirates}, Security={engine.initialSecurity}");
+        Debug.Log($"Applied: M={engine.initialMerchants}, P={engine.initialPirates}, S={engine.initialSecurity}");
     }
 
     int ParseInt(TMP_InputField input, int defaultValue)
@@ -316,7 +534,7 @@ public class SimpleButtons : MonoBehaviour
     void UpdatePauseButtonText()
     {
         if (pauseButtonText)
-            pauseButtonText.text = isPaused ? "RESUME" : "PAUSE";
+            pauseButtonText.text = isPaused ? "Resume" : "Pause";
     }
 
     void SetStatus(string text)
@@ -324,7 +542,7 @@ public class SimpleButtons : MonoBehaviour
         if (statusText)
         {
             statusText.text = text;
-            
+
             switch (text)
             {
                 case "RUNNING": statusText.color = Color.green; break;
@@ -335,12 +553,6 @@ public class SimpleButtons : MonoBehaviour
         }
     }
 
-    void UpdateSpeedLabel()
-    {
-        if (speedLabel && speedSlider)
-            speedLabel.text = $"Speed: {speedSlider.value:F1}x";
-    }
-
     void UpdateTimeDisplay()
     {
         if (timeText == null || engine == null) return;
@@ -348,7 +560,7 @@ public class SimpleButtons : MonoBehaviour
         int ticks = engine.GetTickCount();
         int ticksPerHour = 60;
         int startHour = 6;
-        
+
         if (EnvironmentSettings.Instance != null)
         {
             switch (EnvironmentSettings.Instance.timeOfDay)
@@ -359,7 +571,7 @@ public class SimpleButtons : MonoBehaviour
                 case TimeOfDay.Night: startHour = 22; break;
             }
         }
-        
+
         int totalMinutes = (ticks * 60) / Mathf.Max(1, ticksPerHour);
         int hours = (startHour + (totalMinutes / 60)) % 24;
         int minutes = totalMinutes % 60;

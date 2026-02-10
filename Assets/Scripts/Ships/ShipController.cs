@@ -235,7 +235,7 @@ public class ShipController : MonoBehaviour
         }
 
         // Rotate to face movement direction
-        FaceDirection(moveDir);
+        //FaceDirection(moveDir);
     }
 
     /// <summary>

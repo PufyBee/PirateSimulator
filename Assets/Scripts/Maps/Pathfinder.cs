@@ -5,9 +5,6 @@ using System.Collections.Generic;
 /// A* Pathfinder that works with MapColorSampler.
 /// Finds paths through water, avoiding land.
 /// 
-/// UPDATED: Now accounts for ship size when building grid,
-/// so paths automatically stay away from coastlines.
-/// 
 /// SETUP:
 /// 1. Create empty GameObject called "Pathfinder"
 /// 2. Add this script to it
@@ -21,19 +18,9 @@ public class Pathfinder : MonoBehaviour
     [Tooltip("How many cells to divide the map into. Higher = more accurate but slower. 100-150 is good.")]
     public int gridResolution = 120;
 
-    [Header("Ship Safety Buffer")]
-    [Tooltip("How far from land should paths stay? Increase if ships get stuck near coastlines.")]
-    public float shipSafetyBuffer = 0.5f;
-    
-    [Header("Coast Avoidance")]
-    [Tooltip("Prefer paths in open water vs near coasts. 0 = no preference, 1+ = strongly prefer open water.")]
-    public float coastAvoidanceWeight = 1.5f;
-
     [Header("Path Smoothing")]
     [Tooltip("Remove unnecessary waypoints for smoother paths")]
     public bool smoothPath = true;
-    [Tooltip("Maximum waypoints to skip when smoothing (lower = safer paths)")]
-    public int maxSmoothSkip = 5;
 
     [Header("Performance")]
     [Tooltip("Max nodes to search before giving up (prevents freezing)")]
@@ -45,7 +32,6 @@ public class Pathfinder : MonoBehaviour
 
     // Internal grid
     private bool[,] walkable;
-    private float[,] distanceToLand;  // For coast avoidance weighting
     private int gridWidth;
     private int gridHeight;
     private float cellWidth;
@@ -104,9 +90,13 @@ public class Pathfinder : MonoBehaviour
         // Build walkability grid
         walkable = new bool[gridWidth, gridHeight];
 
-        // Temporarily disable MapColorSampler's buffer - we'll do our own
-        bool originalBuffer = MapColorSampler.Instance.useCoastBuffer;
-        MapColorSampler.Instance.useCoastBuffer = false;
+        // KEEP coast buffer enabled - we WANT paths to stay away from coastlines
+        // This prevents the "stuck at coast" problem
+        float originalBufferSize = MapColorSampler.Instance.coastBufferWorld;
+        
+        // Use a slightly larger buffer for pathfinding than for runtime checks
+        // This ensures paths stay comfortably away from land
+        MapColorSampler.Instance.coastBufferWorld = Mathf.Max(originalBufferSize, cellWidth * 0.8f);
 
         int waterCount = 0;
         int landCount = 0;
@@ -117,127 +107,21 @@ public class Pathfinder : MonoBehaviour
             {
                 Vector2 worldPos = GridToWorld(x, y);
                 
-                // Check if this cell is safe for a ship (with buffer)
-                bool isSafe = IsSafeForShip(worldPos);
-                walkable[x, y] = isSafe;
+                // Use the full IsWater check (which includes coast buffer)
+                bool isWater = MapColorSampler.Instance.IsWater(worldPos);
 
-                if (isSafe) waterCount++;
+                walkable[x, y] = isWater;
+
+                if (isWater) waterCount++;
                 else landCount++;
             }
         }
 
-        // Restore original settings
-        MapColorSampler.Instance.useCoastBuffer = originalBuffer;
-
-        // Build distance-to-land grid for coast avoidance
-        if (coastAvoidanceWeight > 0)
-        {
-            BuildDistanceToLandGrid();
-        }
+        // Restore original buffer for runtime
+        MapColorSampler.Instance.coastBufferWorld = originalBufferSize;
 
         isInitialized = true;
-        Debug.Log($"Pathfinder: Grid built - {gridWidth}x{gridHeight} ({waterCount} water, {landCount} land cells) with {shipSafetyBuffer} buffer");
-    }
-
-    /// <summary>
-    /// Check if a position is safe for a ship (water + buffer from land).
-    /// </summary>
-    private bool IsSafeForShip(Vector2 worldPos)
-    {
-        // Center must be water
-        if (!MapColorSampler.Instance.IsWater(worldPos))
-            return false;
-
-        // If no buffer, just check center
-        if (shipSafetyBuffer <= 0.01f)
-            return true;
-
-        // Check in 8 directions around the point
-        float buffer = shipSafetyBuffer;
-        
-        // Cardinal directions
-        if (!MapColorSampler.Instance.IsWater(worldPos + new Vector2(buffer, 0))) return false;
-        if (!MapColorSampler.Instance.IsWater(worldPos + new Vector2(-buffer, 0))) return false;
-        if (!MapColorSampler.Instance.IsWater(worldPos + new Vector2(0, buffer))) return false;
-        if (!MapColorSampler.Instance.IsWater(worldPos + new Vector2(0, -buffer))) return false;
-
-        // Diagonal directions (at ~70% distance for circle approximation)
-        float diagBuffer = buffer * 0.7f;
-        if (!MapColorSampler.Instance.IsWater(worldPos + new Vector2(diagBuffer, diagBuffer))) return false;
-        if (!MapColorSampler.Instance.IsWater(worldPos + new Vector2(-diagBuffer, diagBuffer))) return false;
-        if (!MapColorSampler.Instance.IsWater(worldPos + new Vector2(diagBuffer, -diagBuffer))) return false;
-        if (!MapColorSampler.Instance.IsWater(worldPos + new Vector2(-diagBuffer, -diagBuffer))) return false;
-
-        return true;
-    }
-
-    /// <summary>
-    /// Build a grid showing distance to nearest land for coast avoidance.
-    /// Cells near land have low values, cells in open water have high values.
-    /// </summary>
-    private void BuildDistanceToLandGrid()
-    {
-        distanceToLand = new float[gridWidth, gridHeight];
-        
-        // Initialize: land = 0, water = max
-        for (int x = 0; x < gridWidth; x++)
-        {
-            for (int y = 0; y < gridHeight; y++)
-            {
-                distanceToLand[x, y] = walkable[x, y] ? 999f : 0f;
-            }
-        }
-
-        // Multi-pass distance propagation (simple but effective)
-        int passes = Mathf.Min(20, Mathf.Max(gridWidth, gridHeight) / 4);
-        
-        for (int pass = 0; pass < passes; pass++)
-        {
-            for (int x = 1; x < gridWidth - 1; x++)
-            {
-                for (int y = 1; y < gridHeight - 1; y++)
-                {
-                    if (!walkable[x, y]) continue;
-                    
-                    // Check neighbors and take minimum + 1
-                    float minDist = distanceToLand[x, y];
-                    
-                    minDist = Mathf.Min(minDist, distanceToLand[x-1, y] + 1f);
-                    minDist = Mathf.Min(minDist, distanceToLand[x+1, y] + 1f);
-                    minDist = Mathf.Min(minDist, distanceToLand[x, y-1] + 1f);
-                    minDist = Mathf.Min(minDist, distanceToLand[x, y+1] + 1f);
-                    minDist = Mathf.Min(minDist, distanceToLand[x-1, y-1] + 1.414f);
-                    minDist = Mathf.Min(minDist, distanceToLand[x+1, y-1] + 1.414f);
-                    minDist = Mathf.Min(minDist, distanceToLand[x-1, y+1] + 1.414f);
-                    minDist = Mathf.Min(minDist, distanceToLand[x+1, y+1] + 1.414f);
-                    
-                    distanceToLand[x, y] = minDist;
-                }
-            }
-        }
-        
-        Debug.Log("Pathfinder: Distance-to-land grid built for coast avoidance");
-    }
-
-    /// <summary>
-    /// Get the movement cost for a cell. Higher near coasts.
-    /// </summary>
-    private float GetMovementCost(Vector2Int cell, float baseMoveCost)
-    {
-        if (coastAvoidanceWeight <= 0 || distanceToLand == null)
-            return baseMoveCost;
-        
-        float dist = distanceToLand[cell.x, cell.y];
-        
-        // Cells near land (low distance) get higher cost
-        // Invert: close to land = high penalty
-        float maxDist = 10f;  // Cap the benefit of being far from land
-        float normalizedDist = Mathf.Clamp01(dist / maxDist);
-        
-        // Cost multiplier: near land = up to 2x cost, open water = 1x cost
-        float costMultiplier = 1f + (1f - normalizedDist) * coastAvoidanceWeight;
-        
-        return baseMoveCost * costMultiplier;
+        Debug.Log($"Pathfinder: Grid built - {gridWidth}x{gridHeight} ({waterCount} water, {landCount} land cells)");
     }
 
     /// <summary>
@@ -301,9 +185,15 @@ public class Pathfinder : MonoBehaviour
             worldPath.Add(GridToWorld(cell.x, cell.y));
         }
 
-        // Use exact start and end positions
+        // Use exact start position (ship's actual location)
         worldPath[0] = startWorld;
-        worldPath[worldPath.Count - 1] = endWorld;
+        
+        // Only use exact end position if it's actually in water
+        // Otherwise keep the pathfinder's nearest-water endpoint
+        if (MapColorSampler.Instance != null && MapColorSampler.Instance.IsWater(endWorld))
+        {
+            worldPath[worldPath.Count - 1] = endWorld;
+        }
 
         // Smooth the path
         if (smoothPath && worldPath.Count > 2)
@@ -366,8 +256,7 @@ public class Pathfinder : MonoBehaviour
                             continue;
                     }
 
-                    float baseMoveCost = (dx != 0 && dy != 0) ? 1.414f : 1f;
-                    float moveCost = GetMovementCost(neighbor, baseMoveCost);
+                    float moveCost = (dx != 0 && dy != 0) ? 1.414f : 1f;
                     float tentativeG = gScore[current] + moveCost;
 
                     if (!gScore.ContainsKey(neighbor) || tentativeG < gScore[neighbor])
@@ -462,23 +351,14 @@ public class Pathfinder : MonoBehaviour
 
         while (current < path.Count - 1)
         {
-            // Start by looking just one step ahead
             int farthest = current + 1;
 
-            // Try to find farthest point with VERIFIED clear line of sight
-            // But don't skip too many at once
-            int maxLookAhead = Mathf.Min(current + maxSmoothSkip + 1, path.Count);
-            
-            for (int i = current + 2; i < maxLookAhead; i++)
+            // Find farthest point with clear line of sight
+            for (int i = current + 2; i < path.Count; i++)
             {
                 if (HasLineOfSight(path[current], path[i]))
                 {
                     farthest = i;
-                }
-                else
-                {
-                    // Once we hit an obstacle, stop looking further
-                    break;
                 }
             }
 
@@ -492,19 +372,15 @@ public class Pathfinder : MonoBehaviour
     private bool HasLineOfSight(Vector2 from, Vector2 to)
     {
         float dist = Vector2.Distance(from, to);
-        
-        // Very thorough checking - sample every half cell width
-        float sampleDist = Mathf.Min(cellWidth, cellHeight) * 0.5f;
-        int samples = Mathf.Max(20, Mathf.CeilToInt(dist / sampleDist));
+        // More samples = stricter check, won't smooth through narrow land
+        int samples = Mathf.Max(5, Mathf.CeilToInt(dist / (cellWidth * 0.3f)));
 
-        for (int i = 0; i <= samples; i++)
+        for (int i = 1; i < samples; i++)
         {
             float t = i / (float)samples;
             Vector2 point = Vector2.Lerp(from, to, t);
 
-            // Check the grid directly - is this cell walkable?
-            Vector2Int cell = WorldToGrid(point);
-            if (!IsWalkable(cell))
+            if (MapColorSampler.Instance != null && !MapColorSampler.Instance.IsWater(point))
             {
                 return false;
             }
