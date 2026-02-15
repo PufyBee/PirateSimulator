@@ -2176,6 +2176,56 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2da0c512f12947e489f739169773d7ca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &709728273
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 709728275}
+  - component: {fileID: 709728274}
+  m_Layer: 0
+  m_Name: RuntimeStatsOverlay
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &709728274
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 709728273}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 28c762cb014b869479ef7454cedf4cbd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  engine: {fileID: 1335423986}
+  position: 0
+  offset: {x: 10, y: -10}
+  backgroundColor: {r: 0, g: 0, b: 0, a: 0.7}
+  textColor: {r: 1, g: 1, b: 1, a: 1}
+  fontSize: 16
+--- !u!4 &709728275
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 709728273}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -147.11836, y: -36.98492, z: 10.068469}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &752783885
 GameObject:
   m_ObjectHideFlags: 0
@@ -3122,7 +3172,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   lastClickedPosition: {x: 0, y: 0}
-  showOnScreen: 1
+  showOnScreen: 0
   copyKey: 99
 --- !u!1 &933660090
 GameObject:
@@ -7138,6 +7188,7 @@ MonoBehaviour:
   pauseButtonText: {fileID: 766520093}
   engine: {fileID: 1335423986}
   liveResultsPanel: {fileID: 354107302}
+  runtimeStatsOverlay: {fileID: 0}
   merchantCountInput: {fileID: 865467289}
   pirateCountInput: {fileID: 1342037474}
   securityCountInput: {fileID: 206447400}
@@ -8137,3 +8188,4 @@ SceneRoots:
   - {fileID: 981928272}
   - {fileID: 679553809}
   - {fileID: 815269509}
+  - {fileID: 709728275}
