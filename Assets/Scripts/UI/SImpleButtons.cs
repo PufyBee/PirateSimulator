@@ -41,8 +41,11 @@ public class SimpleButtons : MonoBehaviour
     [Header("=== REFERENCES ===")]
     public SimulationEngine engine;
 
-    [Header("=== LIVE RESULTS ===")]
+    [Header("=== LIVE STATS (Use one or the other) ===")]
+    [Tooltip("Old style: Separate panel that replaces setup")]
     public LiveResultsPanel liveResultsPanel;
+    [Tooltip("New style: Self-contained overlay (recommended)")]
+    public RuntimeStatsOverlay runtimeStatsOverlay;
 
     [Header("=== SHIP COUNT INPUTS (Initial Ships) ===")]
     public TMP_InputField merchantCountInput;
@@ -226,8 +229,16 @@ public class SimpleButtons : MonoBehaviour
         // Show condition badge during run (Rqmt25)
         if (conditionBadge) conditionBadge.gameObject.SetActive(true);
 
-        // Show live results panel
+        // Show live stats (supports both old and new style)
         if (liveResultsPanel) liveResultsPanel.ShowLiveResults();
+        if (runtimeStatsOverlay) runtimeStatsOverlay.Show();
+        
+        // Auto-find RuntimeStatsOverlay if not assigned
+        if (runtimeStatsOverlay == null)
+        {
+            runtimeStatsOverlay = FindObjectOfType<RuntimeStatsOverlay>();
+            if (runtimeStatsOverlay != null) runtimeStatsOverlay.Show();
+        }
     }
 
     void OnPauseClicked()
@@ -330,8 +341,10 @@ public class SimpleButtons : MonoBehaviour
         // Hide condition badge (Rqmt25 - only show during run)
         if (conditionBadge) conditionBadge.gameObject.SetActive(false);
 
-        // Hide live results
+        // Hide live stats (both old and new style)
         if (liveResultsPanel) liveResultsPanel.HideLiveResults();
+        if (runtimeStatsOverlay) runtimeStatsOverlay.Hide();
+        if (RuntimeStatsOverlay.Instance != null) RuntimeStatsOverlay.Instance.Hide();
     }
 
     // ===== TIME OF DAY / WEATHER / MAP BUTTONS =====
