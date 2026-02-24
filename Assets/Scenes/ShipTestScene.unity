@@ -1475,6 +1475,62 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 301405705}
   m_CullTransparentMesh: 1
+--- !u!1 &315903820
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 315903822}
+  - component: {fileID: 315903821}
+  m_Layer: 0
+  m_Name: CostalDefenseManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &315903821
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 315903820}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 99d59a5edb303274caf4fbcb7dc9ecde, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxBatteries: 3
+  batteryRange: 40
+  batteryCooldown: 3
+  batteryColor: {r: 1, g: 0.4, b: 0, a: 1}
+  validColor: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+  invalidColor: {r: 0.8, g: 0.2, b: 0.2, a: 1}
+  rangeColor: {r: 1, g: 0.4, b: 0, a: 0.3}
+  startingAreaCenter: {x: -8, y: 0}
+  startingSpacing: 1.5
+  mapColorSampler: {fileID: 0}
+  shipSpawner: {fileID: 0}
+  showDebugLogs: 0
+--- !u!4 &315903822
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 315903820}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -167.67326, y: -9.707683, z: 11.26686}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &354107298
 GameObject:
   m_ObjectHideFlags: 0
@@ -3225,6 +3281,7 @@ MonoBehaviour:
   OnClose:
     m_PersistentCalls:
       m_Calls: []
+  exportButton: {fileID: 0}
 --- !u!4 &933660092
 Transform:
   m_ObjectHideFlags: 0
@@ -7224,6 +7281,7 @@ MonoBehaviour:
   conditionBadge: {fileID: 0}
   confirmationDialog: {fileID: 981928273}
   spawnZoneConfigurator: {fileID: 679553808}
+  coastalDefenseManager: {fileID: 0}
 --- !u!1 &2002700015
 GameObject:
   m_ObjectHideFlags: 0
@@ -8189,3 +8247,4 @@ SceneRoots:
   - {fileID: 679553809}
   - {fileID: 815269509}
   - {fileID: 709728275}
+  - {fileID: 315903822}
