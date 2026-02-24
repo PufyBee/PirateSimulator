@@ -160,18 +160,15 @@ public class EndOfRunPanel : MonoBehaviour
             titleText.text = "SIMULATION COMPLETE";
         }
 
-        // Grade
+        // Hide grade and protection rate completely
         if (gradeText != null)
         {
-            string grade = GetGrade(lastProtectionRate);
-            gradeText.text = grade;
-            gradeText.color = GetGradeColor(lastProtectionRate);
+            gradeText.gameObject.SetActive(false);
         }
 
-        // Protection rate
         if (protectionRateText != null)
         {
-            protectionRateText.text = $"Protection Rate: {lastProtectionRate:F1}%";
+            protectionRateText.gameObject.SetActive(false);
         }
 
         // Stats
@@ -262,7 +259,7 @@ public class EndOfRunPanel : MonoBehaviour
         panelObject.transform.SetParent(canvasObject.transform, false);
 
         RectTransform panelRect = panelObject.AddComponent<RectTransform>();
-        panelRect.sizeDelta = new Vector2(450, 590);
+        panelRect.sizeDelta = new Vector2(380, 400);  // Tall enough for everything
         panelRect.anchoredPosition = Vector2.zero;
 
         Image panelBg = panelObject.AddComponent<Image>();
@@ -274,8 +271,8 @@ public class EndOfRunPanel : MonoBehaviour
 
         // Layout
         VerticalLayoutGroup layout = panelObject.AddComponent<VerticalLayoutGroup>();
-        layout.padding = new RectOffset(30, 30, 25, 25);
-        layout.spacing = 12;
+        layout.padding = new RectOffset(25, 25, 20, 20);
+        layout.spacing = 8;  // Reduced spacing
         layout.childAlignment = TextAnchor.UpperCenter;
         layout.childControlHeight = false;
         layout.childControlWidth = true;
@@ -283,33 +280,25 @@ public class EndOfRunPanel : MonoBehaviour
         layout.childForceExpandWidth = true;
 
         // === TITLE ===
-        titleText = CreateText(panelObject.transform, "SIMULATION COMPLETE", 28, FontStyles.Bold, new Color(0.4f, 0.8f, 0.5f));
-        titleText.GetComponent<LayoutElement>().preferredHeight = 45;
-
-        // === BIG GRADE ===
-        gradeText = CreateText(panelObject.transform, "A+", 72, FontStyles.Bold, gradeA);
-        gradeText.GetComponent<LayoutElement>().preferredHeight = 90;
-
-        // === PROTECTION RATE ===
-        protectionRateText = CreateText(panelObject.transform, "Protection Rate: 85.0%", 24, FontStyles.Normal, Color.white);
-        protectionRateText.GetComponent<LayoutElement>().preferredHeight = 35;
+        titleText = CreateText(panelObject.transform, "SIMULATION COMPLETE", 24, FontStyles.Bold, new Color(0.4f, 0.8f, 0.5f));
+        titleText.GetComponent<LayoutElement>().preferredHeight = 35;
 
         // === STATS ===
-        merchantsEscapedText = CreateText(panelObject.transform, "Merchants Escaped: 0", 18, FontStyles.Normal, new Color(0.3f, 0.9f, 0.4f));
+        merchantsEscapedText = CreateText(panelObject.transform, "Merchants Escaped: 0", 20, FontStyles.Normal, new Color(0.3f, 0.9f, 0.4f));
         merchantsEscapedText.GetComponent<LayoutElement>().preferredHeight = 28;
 
-        merchantsCapturedText = CreateText(panelObject.transform, "Merchants Captured: 0", 18, FontStyles.Normal, new Color(0.9f, 0.4f, 0.3f));
+        merchantsCapturedText = CreateText(panelObject.transform, "Merchants Captured: 0", 20, FontStyles.Normal, new Color(0.9f, 0.4f, 0.3f));
         merchantsCapturedText.GetComponent<LayoutElement>().preferredHeight = 28;
 
-        piratesDefeatedText = CreateText(panelObject.transform, "Pirates Defeated: 0", 18, FontStyles.Normal, new Color(0.4f, 0.6f, 0.9f));
+        piratesDefeatedText = CreateText(panelObject.transform, "Pirates Defeated: 0", 20, FontStyles.Normal, new Color(0.4f, 0.6f, 0.9f));
         piratesDefeatedText.GetComponent<LayoutElement>().preferredHeight = 28;
 
         // === CONDITIONS & DURATION ===
         conditionsText = CreateText(panelObject.transform, "Conditions: Morning, Clear", 14, FontStyles.Italic, new Color(0.7f, 0.7f, 0.7f));
-        conditionsText.GetComponent<LayoutElement>().preferredHeight = 22;
+        conditionsText.GetComponent<LayoutElement>().preferredHeight = 20;
 
         durationText = CreateText(panelObject.transform, "Duration: Day 1, 06:00 (360 ticks)", 14, FontStyles.Italic, new Color(0.7f, 0.7f, 0.7f));
-        durationText.GetComponent<LayoutElement>().preferredHeight = 22;
+        durationText.GetComponent<LayoutElement>().preferredHeight = 20;
 
         // === BUTTONS ===
         // Export button
@@ -356,8 +345,8 @@ public class EndOfRunPanel : MonoBehaviour
         btn.onClick.AddListener(onClick);
 
         LayoutElement le = btnObj.AddComponent<LayoutElement>();
-        le.preferredHeight = 45;
-        le.preferredWidth = 200;
+        le.preferredHeight = 38;
+        le.preferredWidth = 180;
 
         // Text
         GameObject textObj = new GameObject("Text");
@@ -400,5 +389,13 @@ public class EndOfRunPanel : MonoBehaviour
     void CreateDivider(Transform parent)
     {
         // Not used anymore
+    }
+
+    void CreateSpacer(Transform parent, float height)
+    {
+        GameObject spacer = new GameObject("Spacer");
+        spacer.transform.SetParent(parent, false);
+        LayoutElement le = spacer.AddComponent<LayoutElement>();
+        le.preferredHeight = height;
     }
 }

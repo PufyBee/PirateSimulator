@@ -110,7 +110,7 @@ public class RuntimeStatsOverlay : MonoBehaviour
 
         RectTransform panelRect = panelObject.AddComponent<RectTransform>();
         SetAnchorPosition(panelRect);
-        panelRect.sizeDelta = new Vector2(220, 280);
+        panelRect.sizeDelta = new Vector2(200, 220);  // Smaller panel
 
         Image panelBg = panelObject.AddComponent<Image>();
         panelBg.color = backgroundColor;
@@ -204,14 +204,6 @@ public class RuntimeStatsOverlay : MonoBehaviour
         int captured = engine.GetMerchantsCaptured();
         int defeated = engine.GetPiratesDefeated();
 
-        // Calculate protection rate
-        int totalMerchants = escaped + captured;
-        float protectionRate = totalMerchants > 0 ? (float)escaped / totalMerchants * 100f : 100f;
-
-        // Get grade
-        string grade = GetGrade(protectionRate);
-        string gradeColor = GetGradeColorHex(protectionRate);
-
         // Get conditions
         string conditions = "Normal";
         string effects = "";
@@ -229,7 +221,7 @@ public class RuntimeStatsOverlay : MonoBehaviour
         // Get tick count
         int ticks = engine.GetTickCount();
 
-        // Build display string
+        // Build display string - NO GRADE OR PROTECTION RATE
         statsText.text = 
             $"<b>═══ LIVE STATS ═══</b>\n" +
             $"<color=#AAAAAA>Tick: {ticks}</color>\n" +
@@ -241,14 +233,12 @@ public class RuntimeStatsOverlay : MonoBehaviour
             $"<color=#4444AA>Security: {security}</color>\n" +
             $"\n" +
             $"<b>OUTCOMES</b>\n" +
-            $"<color=#44FF44>✓ Escaped: {escaped}</color>\n" +
-            $"<color=#FF4444>✗ Captured: {captured}</color>\n" +
-            $"<color=#44FFFF>⚔ Defeated: {defeated}</color>\n" +
-            $"\n" +
-            $"<b>PROTECTION RATE</b>\n" +
-            $"<size=24><color={gradeColor}>{protectionRate:F1}% ({grade})</color></size>";
+            $"<color=#44FF44>Escaped: {escaped}</color>\n" +
+            $"<color=#FF4444>Captured: {captured}</color>\n" +
+            $"<color=#44FFFF>Defeated: {defeated}</color>";
     }
 
+    // Keep these for potential future use but they're not called anymore
     string GetGrade(float rate)
     {
         if (rate >= 90) return "A+";
