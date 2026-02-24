@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: -3462289627754624782}
   - component: {fileID: -2128868419300466334}
   - component: {fileID: -6811754987730491480}
+  - component: {fileID: 4296977167126006738}
   m_Layer: 0
   m_Name: NavyShipx
   m_TagString: Untagged
@@ -103,6 +104,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   waypointReachDistance: 0.05
   coastBuffer: 2
+  turnRateDegreesPerTick: 15
+  slowDuringTurns: 1
+  minTurnSpeedMultiplier: 0.3
   smoothVisuals: 0
   visualSmoothSpeed: 12
   minMoveDistance: 0.001
@@ -126,6 +130,10 @@ MonoBehaviour:
   captureTime: 1
   fleeDistance: 4
   fleeSpeedBoost: 1.3
+  memoryDurationTicks: 50
+  retreatRange: 6
+  distressCallRange: 12
+  packHuntingRange: 8
   enableVisualEffects: 1
   explosionPrefab: {fileID: 0}
   captureEffectPrefab: {fileID: 0}
@@ -202,3 +210,25 @@ CircleCollider2D:
   m_Offset: {x: 0, y: 0}
   serializedVersion: 2
   m_Radius: 2
+--- !u!114 &4296977167126006738
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 310014084375218032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f1b46447fe35a145ba178080c37dcf7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  enableWake: 1
+  wakeTime: 2
+  wakeStartWidth: 0.15
+  wakeEndWidth: 0
+  wakeColor: {r: 1, g: 1, b: 1, a: 0.4}
+  enableRadarPing: 1
+  pingCooldown: 2
+  pingExpandTime: 0.5
+  pingMaxRadius: 2
+  pingColor: {r: 1, g: 1, b: 0, a: 0.5}

@@ -27,7 +27,7 @@ public class CoastalDefenseManager : MonoBehaviour
     public int maxBatteries = 3;
 
     [Tooltip("Firing range for each battery")]
-    public float batteryRange = 5f;
+    public float batteryRange = 8f;
 
     [Tooltip("Cooldown between shots")]
     public float batteryCooldown = 3f;
@@ -135,12 +135,12 @@ public class CoastalDefenseManager : MonoBehaviour
         db.spriteRenderer = sr;
         db.rangeRenderer = rangeSR;
 
-        // Add collider for clicking - make it bigger for easy dragging
+        // Add collider for clicking - MASSIVE radius for easy dragging
         CircleCollider2D collider = obj.AddComponent<CircleCollider2D>();
-        collider.radius = 1.0f;
+        collider.radius = 5f;
 
         // Also make the visual sprite bigger
-        obj.transform.localScale = Vector3.one * 1.5f;
+        obj.transform.localScale = Vector3.one * 3f;
 
         return obj;
     }
@@ -446,6 +446,9 @@ public class DraggableBattery : MonoBehaviour
 
         Vector2 pos = new Vector2(transform.position.x, transform.position.y);
         
+        Debug.Log($"DraggableBattery {batteryIndex}: Lock() called at position {pos}");
+        Debug.Log($"DraggableBattery {batteryIndex}: IsValidPosition = {manager.IsValidPosition(pos)}");
+        
         // Only activate if placed on land
         if (manager.IsValidPosition(pos))
         {
@@ -457,8 +460,12 @@ public class DraggableBattery : MonoBehaviour
                 defenseComponent.cooldownTime = cooldownTime;
                 defenseComponent.shipSpawner = manager.shipSpawner;
                 defenseComponent.showRangeGizmo = false; // We have our own
+                defenseComponent.enableLogs = true;  // Enable logs!
+                
+                Debug.Log($"DraggableBattery {batteryIndex}: CoastalDefense component ADDED with range {firingRange}");
             }
             defenseComponent.enabled = true;
+            Debug.Log($"DraggableBattery {batteryIndex}: CoastalDefense ENABLED");
 
             // Dim the range indicator during runtime
             rangeRenderer.color = new Color(originalRangeColor.r, originalRangeColor.g, originalRangeColor.b, 0.15f);
@@ -468,6 +475,8 @@ public class DraggableBattery : MonoBehaviour
         }
         else
         {
+            Debug.LogWarning($"DraggableBattery {batteryIndex}: NOT on land, will not activate");
+            
             // Not on land - hide this battery
             spriteRenderer.color = new Color(originalColor.r, originalColor.g, originalColor.b, 0.3f);
             rangeIndicator.SetActive(false);

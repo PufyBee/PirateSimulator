@@ -46,6 +46,16 @@ public class ShipBehavior : MonoBehaviour
     [Tooltip("Range for pack hunting coordination")]
     public float packHuntingRange = 8f;
 
+    [Header("=== FORCE ASSESSMENT ===")]
+    [Tooltip("Range to count friendly/enemy ships for force assessment")]
+    public float forceAssessmentRange = 10f;
+    
+    [Tooltip("Pirates need at least this ratio (pirates/security) to attack")]
+    public float minimumForceRatio = 0.5f;
+    
+    [Tooltip("If true, pirates will escort captured merchants instead of destroying them")]
+    public bool enableEscortCapture = true;
+
     [Header("=== VISUAL EFFECTS ===")]
     public bool enableVisualEffects = true;
     public GameObject explosionPrefab;
@@ -88,9 +98,10 @@ public class ShipBehavior : MonoBehaviour
         Chasing,
         Fleeing,
         Capturing,
-        Retreating,      // NEW: Pirate fleeing from security
-        Investigating,   // NEW: Going to last known position
-        Responding       // NEW: Security responding to distress
+        Retreating,      // Pirate fleeing from security
+        Investigating,   // Going to last known position
+        Responding,      // Security responding to distress
+        Escorting        // NEW: Pirate escorting captured merchant
     }
 
     // Distress call data structure
@@ -100,6 +111,10 @@ public class ShipBehavior : MonoBehaviour
         public ShipController merchant;
         public int ticksRemaining;
     }
+
+    // Escort capture system
+    private ShipController capturedMerchant;
+    private Vector2 escortDestination;
 
     void Awake()
     {
@@ -175,12 +190,33 @@ public class ShipBehavior : MonoBehaviour
 
     void ExecuteSmartPirateBehavior(List<ShipController> allShips)
     {
-        // PRIORITY 1: Check for nearby security - RETREAT!
+        // PRIORITY 0: If escorting a captured merchant, continue escort
+        if (currentState == BehaviorState.Escorting && capturedMerchant != null)
+        {
+            ExecuteEscortBehavior(allShips);
+            return;
+        }
+
+        // PRIORITY 1: Check for nearby security - RETREAT if outgunned!
+        int nearbyPirates = CountNearbyShipsOfType(allShips, controller.Data.position, forceAssessmentRange, ShipType.Pirate);
+        int nearbySecurity = CountNearbyShipsOfType(allShips, controller.Data.position, forceAssessmentRange, ShipType.Security);
+        
+        // Force assessment - retreat if outgunned
+        bool shouldRetreat = false;
+        if (nearbySecurity > 0)
+        {
+            float forceRatio = (float)nearbyPirates / nearbySecurity;
+            shouldRetreat = forceRatio < minimumForceRatio;
+            
+            if (enableLogs && shouldRetreat)
+                Debug.Log($"[{controller.Data.shipId}] OUTGUNNED! Pirates:{nearbyPirates} vs Security:{nearbySecurity} (ratio:{forceRatio:F1})");
+        }
+
         ShipController nearestSecurity = FindNearestShipOfType(allShips, ShipType.Security);
-        if (nearestSecurity != null)
+        if (nearestSecurity != null && shouldRetreat)
         {
             float securityDist = Vector2.Distance(controller.Data.position, nearestSecurity.Data.position);
-            if (securityDist <= retreatRange)
+            if (securityDist <= retreatRange * 1.5f) // Wider retreat range when outgunned
             {
                 ExecuteRetreat(nearestSecurity);
                 return;
@@ -196,7 +232,27 @@ public class ShipBehavior : MonoBehaviour
 
             if (distance <= detectionRange)
             {
-                // Can see target - update memory
+                // FORCE CHECK before engaging
+                // Count security near the TARGET (not near us)
+                int securityNearTarget = CountNearbyShipsOfType(allShips, bestTarget.Data.position, forceAssessmentRange, ShipType.Security);
+                int piratesNearTarget = CountNearbyShipsOfType(allShips, bestTarget.Data.position, forceAssessmentRange, ShipType.Pirate);
+                
+                if (securityNearTarget > 0)
+                {
+                    float engageRatio = (float)piratesNearTarget / securityNearTarget;
+                    if (engageRatio < minimumForceRatio)
+                    {
+                        // Too dangerous - don't engage, patrol instead
+                        if (enableLogs)
+                            Debug.Log($"[{controller.Data.shipId}] Target too well guarded. Pirates:{piratesNearTarget} vs Security:{securityNearTarget}");
+                        
+                        currentTarget = null;
+                        currentState = BehaviorState.Patrolling;
+                        return;
+                    }
+                }
+
+                // Safe to engage - update memory
                 lastKnownTargetPosition = bestTarget.Data.position;
                 hasLastKnownPosition = true;
                 ticksSinceLastSeen = 0;
@@ -216,12 +272,22 @@ public class ShipBehavior : MonoBehaviour
 
                     if (captureProgress >= captureTime)
                     {
-                        CaptureMerchant(currentTarget);
+                        // CAPTURE SUCCESS!
+                        if (enableEscortCapture)
+                        {
+                            // Start escorting the merchant instead of destroying
+                            StartEscortCapture(currentTarget);
+                        }
+                        else
+                        {
+                            // Old behavior - destroy merchant
+                            CaptureMerchant(currentTarget);
+                        }
+                        
                         RecordCaptureHotspot(controller.Data.position);
                         captureProgress = 0;
                         currentTarget = null;
                         hasLastKnownPosition = false;
-                        currentState = BehaviorState.Patrolling;
                     }
                 }
                 else
@@ -299,6 +365,129 @@ public class ShipBehavior : MonoBehaviour
 
         if (enableLogs)
             Debug.Log($"[{controller.Data.shipId}] RETREATING from security!");
+    }
+
+    /// <summary>
+    /// Start escorting a captured merchant back to pirate base
+    /// </summary>
+    void StartEscortCapture(ShipController merchant)
+    {
+        if (merchant == null) return;
+
+        capturedMerchant = merchant;
+        currentState = BehaviorState.Escorting;
+
+        // Mark merchant as captured but don't destroy
+        merchant.Data.state = ShipState.Captured;
+        merchant.SetState(ShipState.Captured);
+
+        // Slow down the merchant (it's being towed)
+        merchant.Data.speedUnitsPerTick = controller.Data.speedUnitsPerTick * 0.8f;
+
+        // Set destination to pirate spawn area (their "base")
+        if (ShipSpawner.Instance != null)
+        {
+            escortDestination = ShipSpawner.Instance.pirateSpawnCenter;
+        }
+        else
+        {
+            // Fallback - just go off screen
+            escortDestination = controller.Data.position + new Vector2(-20f, 0);
+        }
+
+        controller.SetDestination(escortDestination);
+
+        if (enableLogs)
+            Debug.Log($"[{controller.Data.shipId}] ESCORTING captured {merchant.Data.shipId} to base!");
+
+        // Visual feedback - dim the merchant
+        SpriteRenderer sr = merchant.GetComponent<SpriteRenderer>();
+        if (sr != null)
+        {
+            sr.color = new Color(0.5f, 0.5f, 0.5f, 0.8f);
+        }
+    }
+
+    /// <summary>
+    /// Execute escort behavior - pirate leading captured merchant to base
+    /// </summary>
+    void ExecuteEscortBehavior(List<ShipController> allShips)
+    {
+        // Check if merchant is still valid
+        if (capturedMerchant == null || capturedMerchant.Data == null)
+        {
+            // Lost the merchant somehow
+            capturedMerchant = null;
+            currentState = BehaviorState.Patrolling;
+            return;
+        }
+
+        // Check for nearby security - might need to abandon capture and flee
+        int nearbySecurity = CountNearbyShipsOfType(allShips, controller.Data.position, forceAssessmentRange, ShipType.Security);
+        int nearbyPirates = CountNearbyShipsOfType(allShips, controller.Data.position, forceAssessmentRange, ShipType.Pirate);
+        
+        if (nearbySecurity > 0)
+        {
+            float forceRatio = (float)nearbyPirates / nearbySecurity;
+            if (forceRatio < minimumForceRatio)
+            {
+                // Outgunned! Abandon the merchant and flee
+                if (enableLogs)
+                    Debug.Log($"[{controller.Data.shipId}] ABANDONING captured merchant - too much security!");
+                
+                // Release merchant (it's still captured but stationary)
+                capturedMerchant = null;
+                
+                ShipController nearestSecurity = FindNearestShipOfType(allShips, ShipType.Security);
+                if (nearestSecurity != null)
+                {
+                    ExecuteRetreat(nearestSecurity);
+                }
+                else
+                {
+                    currentState = BehaviorState.Patrolling;
+                }
+                return;
+            }
+        }
+
+        // Make merchant follow pirate
+        if (capturedMerchant != null && capturedMerchant.Data != null)
+        {
+            // Merchant follows slightly behind pirate
+            Vector2 followPos = controller.Data.position;
+            capturedMerchant.Data.position = Vector2.Lerp(capturedMerchant.Data.position, followPos, 0.1f);
+            capturedMerchant.transform.position = new Vector3(capturedMerchant.Data.position.x, capturedMerchant.Data.position.y, capturedMerchant.transform.position.z);
+        }
+
+        // Check if we've reached the base
+        float distToBase = Vector2.Distance(controller.Data.position, escortDestination);
+        if (distToBase < 2f)
+        {
+            // Successfully delivered merchant to pirate base!
+            if (enableLogs)
+                Debug.Log($"[{controller.Data.shipId}] DELIVERED {capturedMerchant.Data.shipId} to pirate base!");
+
+            // Now actually "process" the merchant (destroy with effect)
+            if (capturedMerchant != null)
+            {
+                if (enableVisualEffects)
+                {
+                    StartCoroutine(CaptureVisualEffect(capturedMerchant));
+                }
+                else
+                {
+                    Destroy(capturedMerchant.gameObject);
+                }
+            }
+
+            capturedMerchant = null;
+            currentState = BehaviorState.Patrolling;
+            return;
+        }
+
+        // Continue toward base
+        currentState = BehaviorState.Escorting;
     }
 
     /// <summary>
@@ -848,6 +1037,17 @@ public class ShipBehavior : MonoBehaviour
              currentState == BehaviorState.Capturing ||
              currentState == BehaviorState.Responding);
 
+        // Show line when escorting captured merchant
+        if (currentState == BehaviorState.Escorting && capturedMerchant != null)
+        {
+            chaseLineRenderer.enabled = true;
+            chaseLineRenderer.SetPosition(0, transform.position);
+            chaseLineRenderer.SetPosition(1, capturedMerchant.transform.position);
+            chaseLineRenderer.startColor = new Color(0.5f, 0f, 0.5f); // Purple
+            chaseLineRenderer.endColor = new Color(0.8f, 0.4f, 0.8f);
+            return;
+        }
+
         // Also show line when investigating
         if (currentState == BehaviorState.Investigating && hasLastKnownPosition)
         {
@@ -910,6 +1110,11 @@ public class ShipBehavior : MonoBehaviour
                 // Security responding pulses green
                 float respondPulse = (Mathf.Sin(Time.time * 6f) + 1f) / 2f;
                 spriteRenderer.color = Color.Lerp(originalColor, Color.green, respondPulse * 0.3f);
+                break;
+            case BehaviorState.Escorting:
+                // Pirate escorting pulses purple (success!)
+                float escortPulse = (Mathf.Sin(Time.time * 4f) + 1f) / 2f;
+                spriteRenderer.color = Color.Lerp(originalColor, new Color(0.8f, 0.2f, 0.8f), escortPulse * 0.4f);
                 break;
             default:
                 spriteRenderer.color = originalColor;

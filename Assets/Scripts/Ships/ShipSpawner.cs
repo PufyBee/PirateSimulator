@@ -4,6 +4,8 @@ using System.Collections.Generic;
 /// <summary>
 /// Ship Spawner with ZONE-BASED spawning
 /// Ships spawn randomly within a rectangular area, not a single point.
+/// 
+/// Now includes automatic ShipVisualEffects (wakes + radar ping)
 /// </summary>
 public class ShipSpawner : MonoBehaviour
 {
@@ -33,6 +35,10 @@ public class ShipSpawner : MonoBehaviour
     public Vector2 securitySpawnSize = new Vector2(2, 4);
     public Vector2 securityPatrolPoint = new Vector2(-2, -1);
     public float securitySpeed = 0.06f;
+
+    [Header("=== VISUAL EFFECTS ===")]
+    [Tooltip("Add wake trails and radar ping to spawned ships")]
+    public bool enableVisualEffects = true;
 
     [Header("=== DEBUG ===")]
     public bool showSpawnZones = true;
@@ -92,6 +98,12 @@ public class ShipSpawner : MonoBehaviour
         // Initialize and set destination
         controller.Initialize(data);
         controller.SetDestination(destination);
+
+        // Add visual effects (wake trail, radar ping)
+        if (enableVisualEffects && shipObj.GetComponent<ShipVisualEffects>() == null)
+        {
+            shipObj.AddComponent<ShipVisualEffects>();
+        }
 
         // Track this ship
         activeShips.Add(controller);

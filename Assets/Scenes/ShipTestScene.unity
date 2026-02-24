@@ -1142,6 +1142,7 @@ MonoBehaviour:
   securitySpawnSize: {x: 20, y: 20}
   securityPatrolPoint: {x: -1000, y: -1}
   securitySpeed: 1.5
+  enableVisualEffects: 1
   showSpawnZones: 1
 --- !u!4 &239971861
 Transform:
@@ -1505,7 +1506,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maxBatteries: 3
-  batteryRange: 40
+  batteryRange: 30
   batteryCooldown: 3
   batteryColor: {r: 1, g: 0.4, b: 0, a: 1}
   validColor: {r: 0.2, g: 0.8, b: 0.2, a: 1}

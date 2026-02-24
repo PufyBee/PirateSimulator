@@ -225,6 +225,9 @@ public class SimpleButtons : MonoBehaviour
         if (coastalDefenseManager != null)
             coastalDefenseManager.Lock();
 
+        // DISABLE MAP BUTTONS during runtime
+        SetMapButtonsInteractable(false);
+
         if (engine) engine.StartRun();
 
         isPaused = false;
@@ -292,6 +295,9 @@ public class SimpleButtons : MonoBehaviour
                 spawnZoneConfigurator.Lock();
             }
 
+            // DISABLE MAP BUTTONS during runtime
+            SetMapButtonsInteractable(false);
+
             // Switch UI
             if (setupPanel) setupPanel.SetActive(false);
             if (startButtonRoot) startButtonRoot.SetActive(false);
@@ -346,6 +352,9 @@ public class SimpleButtons : MonoBehaviour
         // Unlock coastal defenses
         if (coastalDefenseManager != null)
             coastalDefenseManager.Unlock();
+
+        // RE-ENABLE MAP BUTTONS
+        SetMapButtonsInteractable(true);
 
         // Switch UI: show setup, hide controls
         if (setupPanel) setupPanel.SetActive(true);
@@ -751,5 +760,34 @@ public class SimpleButtons : MonoBehaviour
                         $"Escaped: {escaped}\n" +
                         $"Captured: {captured}\n" +
                         $"Defeated: {defeated}";
+    }
+
+    // ===== MAP BUTTON LOCK =====
+
+    void SetMapButtonsInteractable(bool interactable)
+    {
+        foreach (var btn in mapButtons)
+        {
+            if (btn != null)
+                btn.interactable = interactable;
+        }
+
+        // Also disable time of day and weather buttons during runtime
+        foreach (var btn in todButtons)
+        {
+            if (btn != null)
+                btn.interactable = interactable;
+        }
+
+        foreach (var btn in weatherButtons)
+        {
+            if (btn != null)
+                btn.interactable = interactable;
+        }
+
+        if (!interactable)
+            Debug.Log("Map/Environment buttons LOCKED for runtime");
+        else
+            Debug.Log("Map/Environment buttons UNLOCKED for setup");
     }
 }

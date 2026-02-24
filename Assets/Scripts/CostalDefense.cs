@@ -23,7 +23,7 @@ public class CoastalDefense : MonoBehaviour
 {
     [Header("=== TARGETING ===")]
     [Tooltip("Range at which battery can detect and fire at pirates")]
-    public float firingRange = 5f;
+    public float firingRange = 150f;
     
     [Tooltip("Time between shots in seconds")]
     public float cooldownTime = 3f;
@@ -33,10 +33,10 @@ public class CoastalDefense : MonoBehaviour
 
     [Header("=== MISSILE SETTINGS ===")]
     [Tooltip("How fast the missile travels")]
-    public float missileSpeed = 15f;
+    public float missileSpeed = 20f;
     
     [Tooltip("Missile size")]
-    public float missileScale = 0.3f;
+    public float missileScale = 0.5f;
 
     [Header("=== VISUALS ===")]
     [Tooltip("Color of the missile")]
@@ -53,7 +53,7 @@ public class CoastalDefense : MonoBehaviour
 
     [Header("=== DEBUG ===")]
     public bool showRangeGizmo = true;
-    public bool enableLogs = false;
+    public bool enableLogs = true;  // ON by default now
 
     // State
     private float cooldownRemaining = 0f;
@@ -107,6 +107,12 @@ public class CoastalDefense : MonoBehaviour
 
     void Update()
     {
+        // Debug - check if this is running
+        if (enableLogs && Time.frameCount % 120 == 0)
+        {
+            Debug.Log($"CoastalDefense UPDATE running. Cooldown: {cooldownRemaining:F1}, Target: {(currentTarget != null ? currentTarget.Data?.shipId : "none")}");
+        }
+
         // Cooldown
         if (cooldownRemaining > 0)
         {
@@ -119,29 +125,57 @@ public class CoastalDefense : MonoBehaviour
             currentTarget = FindBestTarget();
             isLockedOn = false;
             lockOnProgress = 0f;
-            lockOnLine.enabled = false;
-            lockOnIndicator.SetActive(false);
+            if (lockOnLine != null) lockOnLine.enabled = false;
+            if (lockOnIndicator != null) lockOnIndicator.SetActive(false);
         }
 
         // Lock-on process
         if (currentTarget != null && cooldownRemaining <= 0)
         {
+            if (enableLogs)
+                Debug.Log($"CoastalDefense: LOCKING ON to {currentTarget.Data.shipId}");
             UpdateLockOn();
         }
     }
 
     ShipController FindBestTarget()
     {
-        if (shipSpawner == null) return null;
+        // Auto-find shipSpawner if not set
+        if (shipSpawner == null)
+        {
+            shipSpawner = ShipSpawner.Instance;
+            if (shipSpawner == null)
+                shipSpawner = FindObjectOfType<ShipSpawner>();
+        }
+
+        if (shipSpawner == null)
+        {
+            if (enableLogs)
+                Debug.LogWarning("CoastalDefense: No ShipSpawner found!");
+            return null;
+        }
 
         ShipController nearest = null;
         float nearestDist = float.MaxValue;
 
-        foreach (var ship in shipSpawner.GetActiveShips())
+        var activeShips = shipSpawner.GetActiveShips();
+        
+        int pirateCount = 0;
+        foreach (var ship in activeShips)
         {
+            if (ship == null || ship.Data == null) continue;
+            
+            // Log ALL ships
+            float dist = Vector2.Distance(transform.position, ship.Data.position);
+            
+            if (ship.Data.type == ShipType.Pirate)
+            {
+                pirateCount++;
+                Debug.Log($"CoastalDefense: PIRATE '{ship.Data.shipId}' at dist {dist:F1}, state={ship.Data.state}, range={firingRange}, inRange={dist <= firingRange}");
+            }
+
             if (!IsValidTarget(ship)) continue;
 
-            float dist = Vector2.Distance(transform.position, ship.Data.position);
             if (dist <= firingRange && dist < nearestDist)
             {
                 // Check if another battery is already targeting this pirate
@@ -152,6 +186,9 @@ public class CoastalDefense : MonoBehaviour
                 }
             }
         }
+        
+        if (enableLogs)
+            Debug.Log($"CoastalDefense: Found {pirateCount} pirates out of {activeShips.Count} ships. Best target: {(nearest != null ? nearest.Data.shipId : "NONE")}");
 
         return nearest;
     }
@@ -252,23 +289,27 @@ public class CoastalDefense : MonoBehaviour
         // Muzzle flash at battery
         StartCoroutine(MuzzleFlash());
 
-        // Track target position (in case they move)
-        Vector3 targetPos = target.transform.position;
-        Vector3 startPos = transform.position;
+        // Fly toward target - track continuously
+        float maxFlightTime = 10f; // Safety timeout
+        float flightTime = 0f;
 
-        float journeyLength = Vector3.Distance(startPos, targetPos);
-        float distanceCovered = 0f;
-
-        // Fly toward target
-        while (distanceCovered < journeyLength)
+        while (flightTime < maxFlightTime)
         {
-            // Update target position if target still exists
+            flightTime += Time.deltaTime;
+
+            // Get current target position
+            Vector3 targetPos;
             if (target != null && target.Data != null && target.Data.state != ShipState.Sunk)
             {
                 targetPos = target.transform.position;
             }
+            else
+            {
+                // Target gone, just explode where we are
+                break;
+            }
 
-            // Move missile
+            // Move missile toward target
             Vector3 direction = (targetPos - missile.transform.position).normalized;
             missile.transform.position += direction * missileSpeed * Time.deltaTime;
             
@@ -276,11 +317,11 @@ public class CoastalDefense : MonoBehaviour
             float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
             missile.transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
 
-            distanceCovered = Vector3.Distance(startPos, missile.transform.position);
-
-            // Check if we've reached target
-            if (Vector3.Distance(missile.transform.position, targetPos) < 0.3f)
+            // Check if we've reached target - use smaller threshold
+            float distanceToTarget = Vector3.Distance(missile.transform.position, targetPos);
+            if (distanceToTarget < 0.5f)
             {
+                // HIT!
                 break;
             }
 
@@ -291,25 +332,24 @@ public class CoastalDefense : MonoBehaviour
         Vector3 impactPos = missile.transform.position;
         Destroy(missile);
 
-        // Explosion effect
-        yield return StartCoroutine(ExplosionEffect(impactPos));
-
-        // Destroy target if still valid
+        // IMMEDIATELY disable the pirate so it stops moving
         if (target != null && target.Data != null && target.Data.state != ShipState.Sunk)
         {
+            // Stop it NOW
             target.Data.state = ShipState.Sunk;
             target.SetState(ShipState.Sunk);
             
             if (enableLogs)
-                Debug.Log($"COASTAL DEFENSE: Pirate {target.Data.shipId} DESTROYED!");
+                Debug.Log($"COASTAL DEFENSE: Pirate {target.Data.shipId} HIT! Stopping movement.");
+        }
 
-            // Trigger defeat visual on the ship
-            ShipBehavior behavior = target.GetComponent<ShipBehavior>();
-            if (behavior != null)
-            {
-                // Let the ship's own defeat effect play
-                StartCoroutine(DefeatEffect(target));
-            }
+        // Explosion effect (plays while pirate is already stopped)
+        yield return StartCoroutine(ExplosionEffect(impactPos));
+
+        // Now do the visual death effect on the stopped pirate
+        if (target != null)
+        {
+            StartCoroutine(DefeatEffect(target));
         }
     }
 
