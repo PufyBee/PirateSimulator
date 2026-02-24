@@ -2,13 +2,23 @@
 using System.Collections.Generic;
 
 /// <summary>
-/// Ship Behavior with Visual Effects
+/// SMART SHIP BEHAVIOR - Advanced AI System
 /// 
-/// IMPROVEMENTS:
-/// - Visual feedback for captures (flash, explosion effect)
-/// - Easier capture mechanics
-/// - Sound effect hooks (for future)
-/// - Chase lines visible in game (not just editor)
+/// PIRATE INTELLIGENCE:
+/// - Memory: Remembers last seen merchant position, pursues even after losing sight
+/// - Retreat: Flees when security is nearby instead of suiciding
+/// - Learning Hotspots: Gravitates toward areas where captures happened
+/// - Pack Hunting: Nearby pirates join active chases
+/// - Threat Assessment: Avoids guarded merchants, targets isolated ones
+/// 
+/// MERCHANT INTELLIGENCE:
+/// - Distress Calls: Broadcasts position when chased, security responds
+/// - Route Adaptation: Avoids areas where captures occurred
+/// 
+/// SECURITY INTELLIGENCE:
+/// - Priority Targeting: Prioritizes pirates actively chasing merchants
+/// - Distress Response: Responds to merchant distress calls
+/// - Patrol Optimization: Patrols high-risk areas
 /// </summary>
 public class ShipBehavior : MonoBehaviour
 {
@@ -16,17 +26,30 @@ public class ShipBehavior : MonoBehaviour
     public float detectionRange = 8f;
 
     [Header("=== CAPTURE/COMBAT ===")]
-    public float captureRange = 1.5f;      // Increased from 0.5
-    public int captureTime = 5;             // Reduced from 10 (faster captures)
+    public float captureRange = 1.5f;
+    public int captureTime = 5;
 
     [Header("=== FLEE SETTINGS ===")]
     public float fleeDistance = 3f;
-    public float fleeSpeedBoost = 1.3f;     // Merchants move faster when fleeing
+    public float fleeSpeedBoost = 1.3f;
+
+    [Header("=== SMART AI SETTINGS ===")]
+    [Tooltip("How long pirates remember last seen position (in ticks)")]
+    public int memoryDurationTicks = 50;
+    
+    [Tooltip("Range at which pirates detect security and retreat")]
+    public float retreatRange = 6f;
+    
+    [Tooltip("Range at which distress calls are heard")]
+    public float distressCallRange = 12f;
+    
+    [Tooltip("Range for pack hunting coordination")]
+    public float packHuntingRange = 8f;
 
     [Header("=== VISUAL EFFECTS ===")]
     public bool enableVisualEffects = true;
-    public GameObject explosionPrefab;       // Optional: assign explosion particle
-    public GameObject captureEffectPrefab;   // Optional: assign capture effect
+    public GameObject explosionPrefab;
+    public GameObject captureEffectPrefab;
 
     [Header("=== DEBUG ===")]
     public bool showGizmos = true;
@@ -46,13 +69,36 @@ public class ShipBehavior : MonoBehaviour
     private Color originalColor;
     private float originalSpeed;
 
+    // === SMART AI STATE ===
+    private Vector2 lastKnownTargetPosition;
+    private bool hasLastKnownPosition = false;
+    private int ticksSinceLastSeen = 0;
+    private bool isRespondingToDistress = false;
+    private Vector2 distressPosition;
+
+    // === STATIC SHARED DATA ===
+    private static List<Vector2> captureHotspots = new List<Vector2>();
+    private static List<DistressCall> activeDistressCalls = new List<DistressCall>();
+    private const int MAX_HOTSPOTS = 20;
+
     public enum BehaviorState
     {
         Idle,
         Patrolling,
         Chasing,
         Fleeing,
-        Capturing
+        Capturing,
+        Retreating,      // NEW: Pirate fleeing from security
+        Investigating,   // NEW: Going to last known position
+        Responding       // NEW: Security responding to distress
+    }
+
+    // Distress call data structure
+    private class DistressCall
+    {
+        public Vector2 position;
+        public ShipController merchant;
+        public int ticksRemaining;
     }
 
     void Awake()
@@ -63,7 +109,6 @@ public class ShipBehavior : MonoBehaviour
         if (spriteRenderer != null)
             originalColor = spriteRenderer.color;
 
-        // Create line renderer for chase visualization
         SetupChaseLineRenderer();
     }
 
@@ -89,7 +134,6 @@ public class ShipBehavior : MonoBehaviour
 
     void Update()
     {
-        // Update chase line in real-time
         UpdateChaseLine();
     }
 
@@ -108,124 +152,367 @@ public class ShipBehavior : MonoBehaviour
             return;
         }
 
+        // Update distress calls (decay over time)
+        UpdateDistressCalls();
+
         switch (controller.Data.type)
         {
             case ShipType.Pirate:
-                ExecutePirateBehavior(allShips);
+                ExecuteSmartPirateBehavior(allShips);
                 break;
             case ShipType.Security:
-                ExecuteSecurityBehavior(allShips);
+                ExecuteSmartSecurityBehavior(allShips);
                 break;
             case ShipType.Cargo:
-                ExecuteMerchantBehavior(allShips);
+                ExecuteSmartMerchantBehavior(allShips);
                 break;
         }
 
         UpdateVisuals();
     }
 
-    // ===== PIRATE BEHAVIOR =====
+    // ==================== SMART PIRATE BEHAVIOR ====================
 
-    void ExecutePirateBehavior(List<ShipController> allShips)
+    void ExecuteSmartPirateBehavior(List<ShipController> allShips)
     {
-        ShipController nearestMerchant = FindNearestShipOfType(allShips, ShipType.Cargo);
-
-        if (nearestMerchant == null)
+        // PRIORITY 1: Check for nearby security - RETREAT!
+        ShipController nearestSecurity = FindNearestShipOfType(allShips, ShipType.Security);
+        if (nearestSecurity != null)
         {
-            currentState = BehaviorState.Patrolling;
-            currentTarget = null;
-            captureProgress = 0;
-            return;
+            float securityDist = Vector2.Distance(controller.Data.position, nearestSecurity.Data.position);
+            if (securityDist <= retreatRange)
+            {
+                ExecuteRetreat(nearestSecurity);
+                return;
+            }
         }
 
-        float distance = Vector2.Distance(controller.Data.position, nearestMerchant.Data.position);
+        // PRIORITY 2: Find a target using threat assessment
+        ShipController bestTarget = FindBestMerchantTarget(allShips);
 
-        if (enableLogs)
-            Debug.Log($"[{controller.Data.shipId}] Merchant at distance {distance:F2} (capture range: {captureRange})");
-
-        if (distance <= detectionRange)
+        if (bestTarget != null)
         {
-            currentTarget = nearestMerchant;
+            float distance = Vector2.Distance(controller.Data.position, bestTarget.Data.position);
 
-            if (distance <= captureRange)
+            if (distance <= detectionRange)
             {
-                // IN CAPTURE RANGE!
-                currentState = BehaviorState.Capturing;
-                captureProgress++;
+                // Can see target - update memory
+                lastKnownTargetPosition = bestTarget.Data.position;
+                hasLastKnownPosition = true;
+                ticksSinceLastSeen = 0;
+                currentTarget = bestTarget;
 
-                // Visual pulse effect during capture
-                if (enableVisualEffects)
-                    PulseCaptureEffect();
+                // Broadcast to pack - other pirates join the hunt
+                NotifyPackOfTarget(allShips, bestTarget);
 
-                if (enableLogs)
-                    Debug.Log($"[{controller.Data.shipId}] CAPTURING {currentTarget.Data.shipId}... {captureProgress}/{captureTime}");
-
-                if (captureProgress >= captureTime)
+                if (distance <= captureRange)
                 {
-                    CaptureMerchant(currentTarget);
+                    // CAPTURING
+                    currentState = BehaviorState.Capturing;
+                    captureProgress++;
+
+                    if (enableVisualEffects)
+                        PulseCaptureEffect();
+
+                    if (captureProgress >= captureTime)
+                    {
+                        CaptureMerchant(currentTarget);
+                        RecordCaptureHotspot(controller.Data.position);
+                        captureProgress = 0;
+                        currentTarget = null;
+                        hasLastKnownPosition = false;
+                        currentState = BehaviorState.Patrolling;
+                    }
+                }
+                else
+                {
+                    // CHASING
+                    currentState = BehaviorState.Chasing;
                     captureProgress = 0;
-                    currentTarget = null;
-                    currentState = BehaviorState.Patrolling;
+                    controller.SetDestination(currentTarget.Data.position);
+                }
+                return;
+            }
+        }
+
+        // PRIORITY 3: Check memory - go to last known position
+        if (hasLastKnownPosition)
+        {
+            ticksSinceLastSeen++;
+
+            if (ticksSinceLastSeen < memoryDurationTicks)
+            {
+                float distToLastKnown = Vector2.Distance(controller.Data.position, lastKnownTargetPosition);
+
+                if (distToLastKnown > 0.5f)
+                {
+                    currentState = BehaviorState.Investigating;
+                    controller.SetDestination(lastKnownTargetPosition);
+
+                    if (enableLogs)
+                        Debug.Log($"[{controller.Data.shipId}] Investigating last known position");
+                    return;
+                }
+                else
+                {
+                    // Reached last known position, target not there
+                    hasLastKnownPosition = false;
                 }
             }
             else
             {
-                // Chase
-                currentState = BehaviorState.Chasing;
-                captureProgress = 0; // Reset if they get away
-                controller.SetDestination(currentTarget.Data.position);
+                // Memory expired
+                hasLastKnownPosition = false;
             }
         }
-        else
+
+        // PRIORITY 4: Patrol toward hotspots
+        if (captureHotspots.Count > 0 && currentState != BehaviorState.Chasing)
         {
-            currentTarget = null;
-            currentState = BehaviorState.Patrolling;
-            captureProgress = 0;
-        }
-    }
+            Vector2 nearestHotspot = GetNearestHotspot();
+            float distToHotspot = Vector2.Distance(controller.Data.position, nearestHotspot);
 
-    // ===== SECURITY BEHAVIOR =====
-
-    void ExecuteSecurityBehavior(List<ShipController> allShips)
-    {
-        ShipController nearestPirate = FindNearestShipOfType(allShips, ShipType.Pirate);
-
-        if (nearestPirate == null)
-        {
-            currentState = BehaviorState.Patrolling;
-            currentTarget = null;
-            return;
-        }
-
-        float distance = Vector2.Distance(controller.Data.position, nearestPirate.Data.position);
-
-        if (distance <= detectionRange)
-        {
-            currentTarget = nearestPirate;
-
-            if (distance <= captureRange)
+            if (distToHotspot > 2f)
             {
-                // Instant defeat
-                DefeatPirate(currentTarget);
-                currentTarget = null;
                 currentState = BehaviorState.Patrolling;
-            }
-            else
-            {
-                currentState = BehaviorState.Chasing;
-                controller.SetDestination(currentTarget.Data.position);
+                controller.SetDestination(nearestHotspot);
+                return;
             }
         }
-        else
+
+        // Default: patrol
+        currentTarget = null;
+        currentState = BehaviorState.Patrolling;
+        captureProgress = 0;
+    }
+
+    void ExecuteRetreat(ShipController security)
+    {
+        currentState = BehaviorState.Retreating;
+        currentTarget = null;
+        captureProgress = 0;
+
+        // Run away from security
+        Vector2 awayDir = (controller.Data.position - security.Data.position).normalized;
+        Vector2 retreatTarget = controller.Data.position + awayDir * fleeDistance * 2f;
+        controller.SetDestination(retreatTarget);
+
+        if (enableLogs)
+            Debug.Log($"[{controller.Data.shipId}] RETREATING from security!");
+    }
+
+    /// <summary>
+    /// Find best merchant target using threat assessment
+    /// Prefers isolated merchants, avoids guarded ones
+    /// </summary>
+    ShipController FindBestMerchantTarget(List<ShipController> allShips)
+    {
+        ShipController bestTarget = null;
+        float bestScore = float.MinValue;
+
+        foreach (var ship in allShips)
         {
-            currentTarget = null;
-            currentState = BehaviorState.Patrolling;
+            if (ship == null || ship.Data == null) continue;
+            if (ship.Data.type != ShipType.Cargo) continue;
+            if (ship.Data.state == ShipState.Captured ||
+                ship.Data.state == ShipState.Sunk ||
+                ship.Data.state == ShipState.Exited) continue;
+
+            float distance = Vector2.Distance(controller.Data.position, ship.Data.position);
+            if (distance > detectionRange * 1.5f) continue; // Extended range for assessment
+
+            // Calculate threat score
+            float score = 100f;
+
+            // Closer is better
+            score -= distance * 5f;
+
+            // Check for nearby security (BAD)
+            float nearestSecurityDist = GetDistanceToNearestSecurity(allShips, ship.Data.position);
+            if (nearestSecurityDist < retreatRange)
+            {
+                score -= 200f; // Heavily penalize guarded merchants
+            }
+            else if (nearestSecurityDist < retreatRange * 2f)
+            {
+                score -= 50f; // Somewhat risky
+            }
+
+            // Isolated merchants are better targets
+            int nearbyMerchants = CountNearbyShipsOfType(allShips, ship.Data.position, 3f, ShipType.Cargo);
+            if (nearbyMerchants <= 1)
+            {
+                score += 30f; // Isolated = easy target
+            }
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestTarget = ship;
+            }
+        }
+
+        return bestScore > 0 ? bestTarget : null;
+    }
+
+    void NotifyPackOfTarget(List<ShipController> allShips, ShipController target)
+    {
+        foreach (var ship in allShips)
+        {
+            if (ship == null || ship == controller) continue;
+            if (ship.Data == null || ship.Data.type != ShipType.Pirate) continue;
+            if (ship.Data.state != ShipState.Moving && ship.Data.state != ShipState.Idle) continue;
+
+            float dist = Vector2.Distance(controller.Data.position, ship.Data.position);
+            if (dist <= packHuntingRange)
+            {
+                ShipBehavior otherBehavior = ship.GetComponent<ShipBehavior>();
+                if (otherBehavior != null && otherBehavior.currentState == BehaviorState.Patrolling)
+                {
+                    // Share target info with pack member
+                    otherBehavior.ReceivePackHuntingInfo(target.Data.position);
+                }
+            }
         }
     }
 
-    // ===== MERCHANT BEHAVIOR =====
+    public void ReceivePackHuntingInfo(Vector2 targetPosition)
+    {
+        if (!hasLastKnownPosition || currentState == BehaviorState.Patrolling)
+        {
+            lastKnownTargetPosition = targetPosition;
+            hasLastKnownPosition = true;
+            ticksSinceLastSeen = 0;
 
-    void ExecuteMerchantBehavior(List<ShipController> allShips)
+            if (enableLogs)
+                Debug.Log($"[{controller.Data.shipId}] Received pack hunting info!");
+        }
+    }
+
+    // ==================== SMART SECURITY BEHAVIOR ====================
+
+    void ExecuteSmartSecurityBehavior(List<ShipController> allShips)
+    {
+        // PRIORITY 1: Respond to distress calls
+        DistressCall nearestDistress = GetNearestDistressCall();
+        if (nearestDistress != null)
+        {
+            float distToDistress = Vector2.Distance(controller.Data.position, nearestDistress.position);
+
+            if (distToDistress <= distressCallRange)
+            {
+                currentState = BehaviorState.Responding;
+                controller.SetDestination(nearestDistress.position);
+                isRespondingToDistress = true;
+                distressPosition = nearestDistress.position;
+
+                if (enableLogs)
+                    Debug.Log($"[{controller.Data.shipId}] Responding to distress call!");
+
+                // Continue to check for pirates en route
+                ShipController nearestPirate = FindNearestShipOfType(allShips, ShipType.Pirate);
+                if (nearestPirate != null)
+                {
+                    float pirateDist = Vector2.Distance(controller.Data.position, nearestPirate.Data.position);
+                    if (pirateDist <= captureRange)
+                    {
+                        DefeatPirate(nearestPirate);
+                        return;
+                    }
+                }
+                return;
+            }
+        }
+
+        // PRIORITY 2: Find pirates - prioritize those actively chasing
+        ShipController priorityTarget = FindPriorityPirateTarget(allShips);
+
+        if (priorityTarget != null)
+        {
+            float distance = Vector2.Distance(controller.Data.position, priorityTarget.Data.position);
+
+            if (distance <= detectionRange)
+            {
+                currentTarget = priorityTarget;
+
+                if (distance <= captureRange)
+                {
+                    DefeatPirate(currentTarget);
+                    currentTarget = null;
+                    currentState = BehaviorState.Patrolling;
+                    isRespondingToDistress = false;
+                }
+                else
+                {
+                    currentState = BehaviorState.Chasing;
+                    controller.SetDestination(currentTarget.Data.position);
+                }
+                return;
+            }
+        }
+
+        // PRIORITY 3: Patrol hotspots (where captures happened)
+        if (captureHotspots.Count > 0)
+        {
+            Vector2 nearestHotspot = GetNearestHotspot();
+            float distToHotspot = Vector2.Distance(controller.Data.position, nearestHotspot);
+
+            if (distToHotspot > 3f)
+            {
+                currentState = BehaviorState.Patrolling;
+                controller.SetDestination(nearestHotspot);
+                return;
+            }
+        }
+
+        currentTarget = null;
+        currentState = BehaviorState.Patrolling;
+        isRespondingToDistress = false;
+    }
+
+    /// <summary>
+    /// Find pirate to target - prioritizes pirates actively chasing merchants
+    /// </summary>
+    ShipController FindPriorityPirateTarget(List<ShipController> allShips)
+    {
+        ShipController chasingPirate = null;
+        ShipController anyPirate = null;
+        float nearestChasingDist = float.MaxValue;
+        float nearestAnyDist = float.MaxValue;
+
+        foreach (var ship in allShips)
+        {
+            if (ship == null || ship.Data == null) continue;
+            if (ship.Data.type != ShipType.Pirate) continue;
+            if (ship.Data.state == ShipState.Sunk) continue;
+
+            float dist = Vector2.Distance(controller.Data.position, ship.Data.position);
+
+            ShipBehavior pirateBehavior = ship.GetComponent<ShipBehavior>();
+            bool isChasing = pirateBehavior != null &&
+                (pirateBehavior.currentState == BehaviorState.Chasing ||
+                 pirateBehavior.currentState == BehaviorState.Capturing);
+
+            if (isChasing && dist < nearestChasingDist)
+            {
+                nearestChasingDist = dist;
+                chasingPirate = ship;
+            }
+
+            if (dist < nearestAnyDist)
+            {
+                nearestAnyDist = dist;
+                anyPirate = ship;
+            }
+        }
+
+        // Prioritize chasing pirates
+        return chasingPirate ?? anyPirate;
+    }
+
+    // ==================== SMART MERCHANT BEHAVIOR ====================
+
+    void ExecuteSmartMerchantBehavior(List<ShipController> allShips)
     {
         if (controller.Data.state == ShipState.Captured)
         {
@@ -239,7 +526,6 @@ public class ShipBehavior : MonoBehaviour
         {
             if (currentState == BehaviorState.Fleeing)
             {
-                // Restore normal speed
                 controller.Data.speedUnitsPerTick = originalSpeed;
                 ReturnToOriginalDestination();
             }
@@ -254,8 +540,10 @@ public class ShipBehavior : MonoBehaviour
             if (currentState != BehaviorState.Fleeing)
             {
                 SaveOriginalDestination();
-                // Speed boost when fleeing!
                 controller.Data.speedUnitsPerTick = originalSpeed * fleeSpeedBoost;
+
+                // BROADCAST DISTRESS CALL
+                BroadcastDistressCall();
             }
 
             currentState = BehaviorState.Fleeing;
@@ -272,7 +560,130 @@ public class ShipBehavior : MonoBehaviour
         }
     }
 
-    // ===== ACTIONS =====
+    void BroadcastDistressCall()
+    {
+        // Check if we already have an active distress call
+        foreach (var call in activeDistressCalls)
+        {
+            if (call.merchant == controller)
+            {
+                call.ticksRemaining = 30; // Refresh
+                call.position = controller.Data.position;
+                return;
+            }
+        }
+
+        // Create new distress call
+        activeDistressCalls.Add(new DistressCall
+        {
+            position = controller.Data.position,
+            merchant = controller,
+            ticksRemaining = 30
+        });
+
+        if (enableLogs)
+            Debug.Log($"[{controller.Data.shipId}] DISTRESS CALL BROADCAST!");
+    }
+
+    // ==================== SHARED SYSTEMS ====================
+
+    void UpdateDistressCalls()
+    {
+        for (int i = activeDistressCalls.Count - 1; i >= 0; i--)
+        {
+            activeDistressCalls[i].ticksRemaining--;
+            if (activeDistressCalls[i].ticksRemaining <= 0)
+            {
+                activeDistressCalls.RemoveAt(i);
+            }
+        }
+    }
+
+    DistressCall GetNearestDistressCall()
+    {
+        DistressCall nearest = null;
+        float nearestDist = float.MaxValue;
+
+        foreach (var call in activeDistressCalls)
+        {
+            float dist = Vector2.Distance(controller.Data.position, call.position);
+            if (dist < nearestDist && dist <= distressCallRange)
+            {
+                nearestDist = dist;
+                nearest = call;
+            }
+        }
+
+        return nearest;
+    }
+
+    void RecordCaptureHotspot(Vector2 position)
+    {
+        // Add to hotspots, limit size
+        captureHotspots.Add(position);
+        if (captureHotspots.Count > MAX_HOTSPOTS)
+        {
+            captureHotspots.RemoveAt(0); // Remove oldest
+        }
+
+        if (enableLogs)
+            Debug.Log($"Capture hotspot recorded at {position}. Total hotspots: {captureHotspots.Count}");
+    }
+
+    Vector2 GetNearestHotspot()
+    {
+        Vector2 nearest = controller.Data.position;
+        float nearestDist = float.MaxValue;
+
+        foreach (var hotspot in captureHotspots)
+        {
+            float dist = Vector2.Distance(controller.Data.position, hotspot);
+            if (dist < nearestDist)
+            {
+                nearestDist = dist;
+                nearest = hotspot;
+            }
+        }
+
+        return nearest;
+    }
+
+    float GetDistanceToNearestSecurity(List<ShipController> allShips, Vector2 position)
+    {
+        float nearest = float.MaxValue;
+
+        foreach (var ship in allShips)
+        {
+            if (ship == null || ship.Data == null) continue;
+            if (ship.Data.type != ShipType.Security) continue;
+            if (ship.Data.state == ShipState.Sunk) continue;
+
+            float dist = Vector2.Distance(position, ship.Data.position);
+            if (dist < nearest)
+                nearest = dist;
+        }
+
+        return nearest;
+    }
+
+    int CountNearbyShipsOfType(List<ShipController> allShips, Vector2 position, float range, ShipType type)
+    {
+        int count = 0;
+        foreach (var ship in allShips)
+        {
+            if (ship == null || ship.Data == null) continue;
+            if (ship.Data.type != type) continue;
+            if (ship.Data.state == ShipState.Captured ||
+                ship.Data.state == ShipState.Sunk ||
+                ship.Data.state == ShipState.Exited) continue;
+
+            if (Vector2.Distance(position, ship.Data.position) <= range)
+                count++;
+        }
+        return count;
+    }
+
+    // ==================== ACTIONS ====================
 
     void CaptureMerchant(ShipController merchant)
     {
@@ -283,7 +694,6 @@ public class ShipBehavior : MonoBehaviour
         merchant.Data.state = ShipState.Captured;
         merchant.SetState(ShipState.Captured);
 
-        // VISUAL EFFECT: Flash and fade
         if (enableVisualEffects)
         {
             StartCoroutine(CaptureVisualEffect(merchant));
@@ -299,33 +709,28 @@ public class ShipBehavior : MonoBehaviour
         pirate.Data.state = ShipState.Sunk;
         pirate.SetState(ShipState.Sunk);
 
-        // VISUAL EFFECT: Explosion
         if (enableVisualEffects)
         {
             StartCoroutine(DefeatVisualEffect(pirate));
         }
     }
 
-    // ===== VISUAL EFFECTS =====
+    // ==================== VISUAL EFFECTS ====================
 
     System.Collections.IEnumerator CaptureVisualEffect(ShipController target)
     {
         if (target == null) yield break;
-        
+
         SpriteRenderer sr = target.GetComponent<SpriteRenderer>();
         if (sr == null) yield break;
 
-        // Flash white
-        if (target == null || sr == null) yield break;
         sr.color = Color.white;
         yield return new WaitForSeconds(0.1f);
 
-        // Flash red
         if (target == null || sr == null) yield break;
         sr.color = Color.red;
         yield return new WaitForSeconds(0.1f);
 
-        // Fade to gray
         float fadeTime = 0.3f;
         float elapsed = 0f;
         Color capturedColor = new Color(0.4f, 0.4f, 0.4f, 0.5f);
@@ -333,7 +738,6 @@ public class ShipBehavior : MonoBehaviour
         while (elapsed < fadeTime)
         {
             if (target == null || sr == null) yield break;
-            
             elapsed += Time.deltaTime;
             sr.color = Color.Lerp(Color.red, capturedColor, elapsed / fadeTime);
             yield return null;
@@ -342,14 +746,12 @@ public class ShipBehavior : MonoBehaviour
         if (target == null || sr == null) yield break;
         sr.color = capturedColor;
 
-        // Optional: Spawn capture effect particle
         if (captureEffectPrefab != null && target != null)
         {
             Instantiate(captureEffectPrefab, target.transform.position, Quaternion.identity);
         }
 
-        // FADE OUT completely over time
-        yield return new WaitForSeconds(2f); // Wait a bit before fading
+        yield return new WaitForSeconds(2f);
 
         if (target == null || sr == null) yield break;
 
@@ -360,22 +762,15 @@ public class ShipBehavior : MonoBehaviour
         while (elapsed < fadeOutTime)
         {
             if (target == null || sr == null) yield break;
-            
             elapsed += Time.deltaTime;
             float t = elapsed / fadeOutTime;
-
-            // Fade alpha
             Color c = sr.color;
             c.a = Mathf.Lerp(0.5f, 0f, t);
             sr.color = c;
-
-            // Slight shrink
             target.transform.localScale = Vector3.Lerp(originalScale, originalScale * 0.5f, t);
-
             yield return null;
         }
 
-        // Destroy the captured ship after fade
         if (target != null)
             Destroy(target.gameObject);
     }
@@ -383,71 +778,56 @@ public class ShipBehavior : MonoBehaviour
     System.Collections.IEnumerator DefeatVisualEffect(ShipController target)
     {
         if (target == null) yield break;
-        
+
         SpriteRenderer sr = target.GetComponent<SpriteRenderer>();
         if (sr == null) yield break;
 
         Vector3 originalScale = target.transform.localScale;
 
-        // Quick expand (impact)
         if (target == null) yield break;
         target.transform.localScale = originalScale * 1.3f;
 
-        // Flash white
         if (target == null || sr == null) yield break;
         sr.color = Color.white;
         yield return new WaitForSeconds(0.05f);
 
-        // Flash cyan (navy color)
         if (target == null || sr == null) yield break;
         sr.color = Color.cyan;
         yield return new WaitForSeconds(0.05f);
 
-        // Flash orange (explosion)
         if (target == null || sr == null) yield break;
         sr.color = new Color(1f, 0.5f, 0f);
         target.transform.localScale = originalScale * 1.5f;
         yield return new WaitForSeconds(0.05f);
 
-        // Flash bright yellow
         if (target == null || sr == null) yield break;
         sr.color = Color.yellow;
         yield return new WaitForSeconds(0.05f);
 
-        // Flash red
         if (target == null || sr == null) yield break;
         sr.color = Color.red;
         yield return new WaitForSeconds(0.05f);
 
-        // Shrink and fade rapidly
         float fadeTime = 0.4f;
         float elapsed = 0f;
 
         while (elapsed < fadeTime)
         {
             if (target == null || sr == null) yield break;
-            
             elapsed += Time.deltaTime;
             float t = elapsed / fadeTime;
-
-            // Shrink with slight spin
             target.transform.localScale = Vector3.Lerp(originalScale * 1.5f, Vector3.zero, t);
-            target.transform.Rotate(0, 0, 720 * Time.deltaTime); // Spin as it shrinks
-
-            // Fade through colors
+            target.transform.Rotate(0, 0, 720 * Time.deltaTime);
             Color c = Color.Lerp(Color.red, new Color(0.2f, 0.2f, 0.2f, 0f), t);
             sr.color = c;
-
             yield return null;
         }
 
-        // Optional: Spawn explosion particle
         if (explosionPrefab != null && target != null)
         {
             Instantiate(explosionPrefab, target.transform.position, Quaternion.identity);
         }
 
-        // Destroy the defeated ship
         if (target != null)
             Destroy(target.gameObject);
     }
@@ -455,8 +835,6 @@ public class ShipBehavior : MonoBehaviour
     void PulseCaptureEffect()
     {
         if (spriteRenderer == null) return;
-
-        // Quick pulse effect
         float pulse = Mathf.Sin(Time.time * 15f);
         spriteRenderer.color = Color.Lerp(originalColor, Color.red, (pulse + 1f) / 2f);
     }
@@ -465,40 +843,37 @@ public class ShipBehavior : MonoBehaviour
     {
         if (chaseLineRenderer == null) return;
 
-        if (currentTarget != null && (currentState == BehaviorState.Chasing || currentState == BehaviorState.Capturing))
+        bool showLine = currentTarget != null &&
+            (currentState == BehaviorState.Chasing ||
+             currentState == BehaviorState.Capturing ||
+             currentState == BehaviorState.Responding);
+
+        // Also show line when investigating
+        if (currentState == BehaviorState.Investigating && hasLastKnownPosition)
+        {
+            chaseLineRenderer.enabled = true;
+            chaseLineRenderer.SetPosition(0, transform.position);
+            chaseLineRenderer.SetPosition(1, new Vector3(lastKnownTargetPosition.x, lastKnownTargetPosition.y, 0));
+            chaseLineRenderer.startColor = Color.gray;
+            chaseLineRenderer.endColor = Color.yellow;
+            return;
+        }
+
+        if (showLine && currentTarget != null)
         {
             chaseLineRenderer.enabled = true;
             chaseLineRenderer.SetPosition(0, transform.position);
             chaseLineRenderer.SetPosition(1, currentTarget.transform.position);
 
-            // Color based on ship type and state
             if (controller.Data.type == ShipType.Security)
             {
-                // Navy uses white/cyan lines
-                if (currentState == BehaviorState.Capturing)
-                {
-                    chaseLineRenderer.startColor = Color.cyan;
-                    chaseLineRenderer.endColor = Color.cyan;
-                }
-                else
-                {
-                    chaseLineRenderer.startColor = Color.white;
-                    chaseLineRenderer.endColor = Color.cyan;
-                }
+                chaseLineRenderer.startColor = currentState == BehaviorState.Responding ? Color.green : Color.white;
+                chaseLineRenderer.endColor = Color.cyan;
             }
             else
             {
-                // Pirates use yellow/red lines
-                if (currentState == BehaviorState.Capturing)
-                {
-                    chaseLineRenderer.startColor = Color.red;
-                    chaseLineRenderer.endColor = Color.red;
-                }
-                else
-                {
-                    chaseLineRenderer.startColor = Color.yellow;
-                    chaseLineRenderer.endColor = Color.red;
-                }
+                chaseLineRenderer.startColor = currentState == BehaviorState.Capturing ? Color.red : Color.yellow;
+                chaseLineRenderer.endColor = Color.red;
             }
         }
         else
@@ -514,15 +889,27 @@ public class ShipBehavior : MonoBehaviour
         switch (currentState)
         {
             case BehaviorState.Fleeing:
-                // Flash when fleeing
                 float flash = Mathf.Sin(Time.time * 10f) > 0 ? 1f : 0.6f;
                 spriteRenderer.color = originalColor * flash;
                 break;
-            case BehaviorState.Capturing:
-                // Handled by PulseCaptureEffect
+            case BehaviorState.Retreating:
+                // Pirates retreating flash differently
+                float retreatFlash = Mathf.Sin(Time.time * 8f) > 0 ? 0.8f : 0.5f;
+                spriteRenderer.color = new Color(originalColor.r * retreatFlash, originalColor.g * 0.5f, originalColor.b * 0.5f);
                 break;
+            case BehaviorState.Capturing:
+                break; // Handled by PulseCaptureEffect
             case BehaviorState.Chasing:
                 spriteRenderer.color = originalColor * 1.2f;
+                break;
+            case BehaviorState.Investigating:
+                // Dim color when investigating
+                spriteRenderer.color = originalColor * 0.8f;
+                break;
+            case BehaviorState.Responding:
+                // Security responding pulses green
+                float respondPulse = (Mathf.Sin(Time.time * 6f) + 1f) / 2f;
+                spriteRenderer.color = Color.Lerp(originalColor, Color.green, respondPulse * 0.3f);
                 break;
             default:
                 spriteRenderer.color = originalColor;
@@ -530,7 +917,7 @@ public class ShipBehavior : MonoBehaviour
         }
     }
 
-    // ===== HELPERS =====
+    // ==================== HELPERS ====================
 
     ShipController FindNearestShipOfType(List<ShipController> allShips, ShipType targetType)
     {
@@ -587,7 +974,16 @@ public class ShipBehavior : MonoBehaviour
         }
     }
 
-    // ===== DEBUG GIZMOS =====
+    /// <summary>
+    /// Clear all static data (call on simulation reset)
+    /// </summary>
+    public static void ResetSharedData()
+    {
+        captureHotspots.Clear();
+        activeDistressCalls.Clear();
+    }
+
+    // ==================== DEBUG GIZMOS ====================
 
 #if UNITY_EDITOR
     void OnDrawGizmos()
@@ -601,6 +997,28 @@ public class ShipBehavior : MonoBehaviour
         // Capture range
         Gizmos.color = new Color(1f, 0f, 0f, 0.25f);
         Gizmos.DrawWireSphere(transform.position, captureRange);
+
+        // Retreat range (pirates only)
+        if (controller != null && controller.Data != null && controller.Data.type == ShipType.Pirate)
+        {
+            Gizmos.color = new Color(0f, 0f, 1f, 0.1f);
+            Gizmos.DrawWireSphere(transform.position, retreatRange);
+        }
+
+        // Last known position
+        if (hasLastKnownPosition)
+        {
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawWireSphere(new Vector3(lastKnownTargetPosition.x, lastKnownTargetPosition.y, 0), 0.3f);
+            Gizmos.DrawLine(transform.position, new Vector3(lastKnownTargetPosition.x, lastKnownTargetPosition.y, 0));
+        }
+
+        // Draw hotspots
+        Gizmos.color = new Color(1f, 0.5f, 0f, 0.3f);
+        foreach (var hotspot in captureHotspots)
+        {
+            Gizmos.DrawWireSphere(new Vector3(hotspot.x, hotspot.y, 0), 0.5f);
+        }
     }
 #endif
 }

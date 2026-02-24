@@ -2,13 +2,18 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// Ship controller with A* pathfinding.
+/// Ship controller with A* pathfinding and TURN RATE PHYSICS.
 /// 
 /// HOW IT WORKS:
 /// 1. Ship is given a destination
 /// 2. Pathfinder calculates a route around obstacles
 /// 3. Ship follows the waypoints
 /// 4. If stuck, ship requests a new path
+/// 
+/// NEW: Ships turn gradually based on their type.
+/// - Merchants turn slow (heavy cargo)
+/// - Pirates turn fast (nimble)
+/// - Security turns medium
 /// 
 /// REPLACES: Your old ShipController.cs
 /// WORKS WITH: Your existing ShipData.cs and ShipRoute.cs (no changes needed)
@@ -23,6 +28,17 @@ public class ShipController : MonoBehaviour
 
     [Tooltip("Buffer distance from coastlines")]
     public float coastBuffer = 0.1f;
+
+    [Header("=== STEERING PHYSICS ===")]
+    [Tooltip("Degrees this ship can turn per tick. Lower = slower turning.")]
+    public float turnRateDegreesPerTick = 15f;
+
+    [Tooltip("Reduce speed when turning sharply")]
+    public bool slowDuringTurns = true;
+
+    [Tooltip("Minimum speed multiplier during sharp turns")]
+    [Range(0.1f, 1f)]
+    public float minTurnSpeedMultiplier = 0.3f;
 
     [Header("Visual Smoothing")]
     [Tooltip("Smoothly interpolate position (visual only, doesn't affect simulation)")]
@@ -49,6 +65,10 @@ public class ShipController : MonoBehaviour
     private const int MaxRepathAttempts = 3;
     private Vector2 lastPosition;
 
+    // Steering state
+    private float currentFacingAngle = 0f;
+    private bool facingInitialized = false;
+
     /// <summary>
     /// Initialize the ship with its data.
     /// Call this right after instantiating the ship.
@@ -61,10 +81,39 @@ public class ShipController : MonoBehaviour
         lastPosition = data.position;
         stuckTicks = 0;
         repathAttempts = 0;
+        facingInitialized = false;
+
+        // Set turn rate based on ship type
+        SetTurnRateByType();
 
         if (logMovement)
         {
-            Debug.Log($"Ship {data.shipId} initialized at {data.position}");
+            Debug.Log($"Ship {data.shipId} initialized at {data.position} with turn rate {turnRateDegreesPerTick}°/tick");
+        }
+    }
+
+    /// <summary>
+    /// Set turn rate based on ship type.
+    /// Merchants are slow, pirates are nimble.
+    /// </summary>
+    private void SetTurnRateByType()
+    {
+        if (Data == null) return;
+
+        switch (Data.type)
+        {
+            case ShipType.Cargo:
+                turnRateDegreesPerTick = 6f;    // Slow, heavy cargo ships
+                break;
+            case ShipType.Pirate:
+                turnRateDegreesPerTick = 18f;   // Fast, nimble pirate boats
+                break;
+            case ShipType.Security:
+                turnRateDegreesPerTick = 10f;   // Medium, military vessels
+                break;
+            default:
+                turnRateDegreesPerTick = 12f;   // Default
+                break;
         }
     }
 
@@ -143,11 +192,13 @@ public class ShipController : MonoBehaviour
         // Smoothly move visual representation toward actual position
         Vector3 targetPos = new Vector3(Data.position.x, Data.position.y, transform.position.z);
         transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * visualSmoothSpeed);
+
+        // Keep ships upright - no rotation
     }
 
     /// <summary>
     /// Simulation tick (called by your SimulationEngine).
-    /// This is where the actual movement happens.
+    /// This is where the actual movement happens with turn physics.
     /// </summary>
     public void OnTick()
     {
@@ -187,14 +238,55 @@ public class ShipController : MonoBehaviour
             distanceToTarget = toTarget.magnitude;
         }
 
-        // Calculate movement direction
-        Vector2 moveDir = toTarget.normalized;
+        // Avoid division by zero
+        if (distanceToTarget < 0.001f) return;
+
+        // === TURN PHYSICS ===
+        
+        // Calculate desired angle (where we WANT to face)
+        float desiredAngle = Mathf.Atan2(toTarget.y, toTarget.x) * Mathf.Rad2Deg;
+
+        // Initialize facing angle on first movement - face toward waypoint immediately
+        if (!facingInitialized)
+        {
+            currentFacingAngle = desiredAngle;
+            facingInitialized = true;
+        }
+
+        // Gradually rotate toward desired angle (limited by turn rate)
+        float previousAngle = currentFacingAngle;
+        currentFacingAngle = Mathf.MoveTowardsAngle(currentFacingAngle, desiredAngle, turnRateDegreesPerTick);
+
+        // Calculate how misaligned we are
+        float angleDifference = Mathf.Abs(Mathf.DeltaAngle(currentFacingAngle, desiredAngle));
+
+        // Calculate speed multiplier based on turn angle
+        float turnSpeedMultiplier = 1f;
+        if (slowDuringTurns && angleDifference > 30f)
+        {
+            // Ship slows down during sharp turns
+            float turnFactor = Mathf.InverseLerp(30f, 180f, angleDifference);
+            turnSpeedMultiplier = Mathf.Lerp(1f, minTurnSpeedMultiplier, turnFactor);
+        }
+
+        // If we're very misaligned (more than 90 degrees), don't move forward yet - just turn
+        if (angleDifference > 90f)
+        {
+            // Just turn in place, no forward movement
+            Data.velocityDir = toTarget.normalized;
+            // Keep ships upright - no rotation
+            return;
+        }
+
+        // Move TOWARD THE WAYPOINT (not in facing direction) but at reduced speed if turning
+        Vector2 moveDirection = toTarget.normalized;
 
         // Calculate how far we can move this tick
-        float moveDistance = Mathf.Min(Data.speedUnitsPerTick, distanceToTarget);
+        float moveDistance = Data.speedUnitsPerTick * turnSpeedMultiplier;
+        moveDistance = Mathf.Min(moveDistance, distanceToTarget);
 
         // Calculate new position
-        Vector2 newPosition = Data.position + moveDir * moveDistance;
+        Vector2 newPosition = Data.position + moveDirection * moveDistance;
 
         // Check if the move is valid (not into land)
         if (MapColorSampler.Instance != null)
@@ -202,7 +294,7 @@ public class ShipController : MonoBehaviour
             if (!IsMoveValid(Data.position, newPosition))
             {
                 // Can't move to desired position - try to find a valid position
-                newPosition = FindValidMovePosition(Data.position, moveDir, moveDistance);
+                newPosition = FindValidMovePosition(Data.position, moveDirection, moveDistance);
             }
         }
 
@@ -226,16 +318,14 @@ public class ShipController : MonoBehaviour
         // Apply movement
         lastPosition = Data.position;
         Data.position = newPosition;
-        Data.velocityDir = moveDir;
+        Data.velocityDir = moveDirection;
 
         // Update visual position (instant if smoothing is off)
         if (!smoothVisuals)
         {
             transform.position = new Vector3(Data.position.x, Data.position.y, transform.position.z);
+            // Keep ships upright - no rotation
         }
-
-        // Rotate to face movement direction
-        //FaceDirection(moveDir);
     }
 
     /// <summary>
@@ -320,7 +410,8 @@ public class ShipController : MonoBehaviour
     }
 
     /// <summary>
-    /// Rotate the ship to face a direction.
+    /// Rotate the ship to face a direction (legacy method, kept for compatibility).
+    /// Now handled automatically by turn physics.
     /// </summary>
     private void FaceDirection(Vector2 direction)
     {
@@ -355,6 +446,14 @@ public class ShipController : MonoBehaviour
             remaining.Add(Data.route.waypoints[i]);
         }
         return remaining;
+    }
+
+    /// <summary>
+    /// Get the current facing angle in degrees.
+    /// </summary>
+    public float GetFacingAngle()
+    {
+        return currentFacingAngle;
     }
 
 #if UNITY_EDITOR
@@ -395,6 +494,15 @@ public class ShipController : MonoBehaviour
             Vector2 dest = Data.route.waypoints[Data.route.waypoints.Count - 1];
             Gizmos.DrawWireSphere(new Vector3(dest.x, dest.y, 0), 0.15f);
         }
+
+        // Draw facing direction
+        Gizmos.color = Color.magenta;
+        Vector2 facingDir = new Vector2(
+            Mathf.Cos(currentFacingAngle * Mathf.Deg2Rad),
+            Mathf.Sin(currentFacingAngle * Mathf.Deg2Rad)
+        );
+        Vector3 pos = transform.position;
+        Gizmos.DrawLine(pos, pos + new Vector3(facingDir.x, facingDir.y, 0) * 0.5f);
     }
 #endif
 }

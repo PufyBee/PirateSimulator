@@ -44,6 +44,9 @@ public class EndOfRunPanel : MonoBehaviour
     public UnityEngine.Events.UnityEvent OnNewRun;
     public UnityEngine.Events.UnityEvent OnClose;
 
+    [Header("=== EXPORT (Optional) ===")]
+    public Button exportButton;
+
     // Internal
     private GameObject canvasObject;
     private bool isShowing = false;
@@ -259,7 +262,7 @@ public class EndOfRunPanel : MonoBehaviour
         panelObject.transform.SetParent(canvasObject.transform, false);
 
         RectTransform panelRect = panelObject.AddComponent<RectTransform>();
-        panelRect.sizeDelta = new Vector2(450, 540);
+        panelRect.sizeDelta = new Vector2(450, 590);
         panelRect.anchoredPosition = Vector2.zero;
 
         Image panelBg = panelObject.AddComponent<Image>();
@@ -309,11 +312,35 @@ public class EndOfRunPanel : MonoBehaviour
         durationText.GetComponent<LayoutElement>().preferredHeight = 22;
 
         // === BUTTONS ===
+        // Export button
+        exportButton = CreateSimpleButton(panelObject.transform, "Export CSV", new Color(0.3f, 0.4f, 0.6f, 1f), OnExportClicked);
+
         // New Run button
         newRunButton = CreateSimpleButton(panelObject.transform, "New Run", new Color(0.2f, 0.55f, 0.3f, 1f), OnNewRunClicked);
 
         // Close button  
         closeButton = CreateSimpleButton(panelObject.transform, "Close", new Color(0.45f, 0.45f, 0.5f, 1f), OnCloseClicked);
+    }
+
+    void OnExportClicked()
+    {
+        if (CSVExporter.Instance != null)
+        {
+            CSVExporter.Instance.ExportResults();
+        }
+        else
+        {
+            // Try to find it
+            var exporter = FindObjectOfType<CSVExporter>();
+            if (exporter != null)
+            {
+                exporter.ExportResults();
+            }
+            else
+            {
+                Debug.LogWarning("CSVExporter not found in scene. Add CSVExporter component to export results.");
+            }
+        }
     }
 
     Button CreateSimpleButton(Transform parent, string text, Color bgColor, UnityEngine.Events.UnityAction onClick)

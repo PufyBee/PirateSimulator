@@ -9,6 +9,8 @@ using UnityEngine;
 /// - Ship spawn rates
 /// - Ship speeds (via ShipSpawner)
 /// - Detection ranges (via ShipBehavior)
+/// 
+/// Also resets shared AI data (hotspots, distress calls) on reset.
 /// </summary>
 public class SimulationEngine : MonoBehaviour
 {
@@ -146,6 +148,12 @@ public class SimulationEngine : MonoBehaviour
 
         if (shipSpawner != null)
             shipSpawner.ClearAllShips();
+
+        // Reset shared AI data (hotspots, distress calls)
+        ShipBehavior.ResetSharedData();
+
+        // Reset coastal defenses
+        CoastalDefense.ResetAllBatteries();
 
         Debug.Log("Simulation RESET");
     }

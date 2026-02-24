@@ -102,6 +102,9 @@ public class SimpleButtons : MonoBehaviour
     [Header("=== SPAWN ZONE CONFIGURATOR ===")]
     public SpawnZoneConfigurator spawnZoneConfigurator;
 
+    [Header("=== COASTAL DEFENSE ===")]
+    public CoastalDefenseManager coastalDefenseManager;
+
     // State
     private bool isPaused = false;
     private int selectedTimeOfDay = 0;
@@ -214,6 +217,13 @@ public class SimpleButtons : MonoBehaviour
             spawnZoneConfigurator.SyncToSpawner();
             spawnZoneConfigurator.Lock();
         }
+
+        // Lock coastal defenses
+        if (coastalDefenseManager == null)
+            coastalDefenseManager = FindObjectOfType<CoastalDefenseManager>();
+
+        if (coastalDefenseManager != null)
+            coastalDefenseManager.Lock();
 
         if (engine) engine.StartRun();
 
@@ -332,6 +342,10 @@ public class SimpleButtons : MonoBehaviour
         // Unlock spawn zones
         if (spawnZoneConfigurator != null)
             spawnZoneConfigurator.ShowForSetup();
+
+        // Unlock coastal defenses
+        if (coastalDefenseManager != null)
+            coastalDefenseManager.Unlock();
 
         // Switch UI: show setup, hide controls
         if (setupPanel) setupPanel.SetActive(true);
@@ -502,22 +516,117 @@ public class SimpleButtons : MonoBehaviour
         Debug.Log($"Environment: {EnvironmentSettings.Instance.GetConditionsSummary()}");
     }
 
+    // === INPUT LIMITS (Crash Prevention) ===
+    private const int MAX_INITIAL_SHIPS = 50;      // Per type
+    private const int MAX_TOTAL_SHIPS = 100;       // All types combined
+    private const int MIN_SPAWN_INTERVAL = 10;     // Prevent spawn flooding
+    private const int MAX_DURATION = 100000;       // ~27 hours of sim time
+    private const int EASTER_EGG_THRESHOLD = 500;  // Trigger funny message
+
     void ApplySettingsFromInputs()
     {
         if (engine == null) return;
 
-        engine.initialMerchants = ParseInt(merchantCountInput, 2);
-        engine.initialPirates = ParseInt(pirateCountInput, 1);
-        engine.initialSecurity = ParseInt(securityCountInput, 1);
+        // Parse raw values first to check for easter egg
+        int rawMerchants = ParseIntRaw(merchantCountInput, 2);
+        int rawPirates = ParseIntRaw(pirateCountInput, 1);
+        int rawSecurity = ParseIntRaw(securityCountInput, 1);
+        int rawTotal = rawMerchants + rawPirates + rawSecurity;
 
-        engine.merchantSpawnInterval = ParseInt(merchantSpawnInput, 50);
-        engine.pirateSpawnInterval = ParseInt(pirateSpawnInput, 80);
-        engine.securitySpawnInterval = ParseInt(securitySpawnInput, 100);
+        // Easter egg check
+        if (rawTotal > EASTER_EGG_THRESHOLD)
+        {
+            StartCoroutine(ShowEasterEggWarning(rawTotal));
+        }
 
-        engine.maxTicks = ParseInt(durationInput, 0);
+        // Parse with limits
+        int merchants = ParseIntClamped(merchantCountInput, 2, 0, MAX_INITIAL_SHIPS);
+        int pirates = ParseIntClamped(pirateCountInput, 1, 0, MAX_INITIAL_SHIPS);
+        int security = ParseIntClamped(securityCountInput, 1, 0, MAX_INITIAL_SHIPS);
+
+        // Enforce total ship limit
+        int totalShips = merchants + pirates + security;
+        if (totalShips > MAX_TOTAL_SHIPS)
+        {
+            float scale = (float)MAX_TOTAL_SHIPS / totalShips;
+            merchants = Mathf.FloorToInt(merchants * scale);
+            pirates = Mathf.FloorToInt(pirates * scale);
+            security = Mathf.FloorToInt(security * scale);
+            Debug.LogWarning($"Total ships clamped to {MAX_TOTAL_SHIPS}. Adjusted: M={merchants}, P={pirates}, S={security}");
+        }
+
+        engine.initialMerchants = merchants;
+        engine.initialPirates = pirates;
+        engine.initialSecurity = security;
+
+        // Spawn intervals (higher = less frequent, so enforce minimum)
+        engine.merchantSpawnInterval = ParseIntClamped(merchantSpawnInput, 50, MIN_SPAWN_INTERVAL, 10000);
+        engine.pirateSpawnInterval = ParseIntClamped(pirateSpawnInput, 80, MIN_SPAWN_INTERVAL, 10000);
+        engine.securitySpawnInterval = ParseIntClamped(securitySpawnInput, 100, MIN_SPAWN_INTERVAL, 10000);
+
+        // Duration and seed (seed can be anything)
+        engine.maxTicks = ParseIntClamped(durationInput, 0, 0, MAX_DURATION);
         engine.runSeed = ParseInt(seedInput, 12345);
 
         Debug.Log($"Applied: M={engine.initialMerchants}, P={engine.initialPirates}, S={engine.initialSecurity}");
+    }
+
+    System.Collections.IEnumerator ShowEasterEggWarning(int attemptedTotal)
+    {
+        // Create canvas if needed
+        GameObject canvasObj = new GameObject("EasterEggCanvas");
+        Canvas canvas = canvasObj.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 9999; // On top of everything
+
+        CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+
+        // Create text
+        GameObject textObj = new GameObject("WarningText");
+        textObj.transform.SetParent(canvasObj.transform, false);
+
+        TMPro.TMP_Text warningText = textObj.AddComponent<TMPro.TextMeshProUGUI>();
+        warningText.text = $"Nice try. Ships capped at {MAX_TOTAL_SHIPS}.\n<size=24>({attemptedTotal:N0} requested)</size>";
+        warningText.fontSize = 48;
+        warningText.color = Color.red;
+        warningText.alignment = TMPro.TextAlignmentOptions.Center;
+        warningText.fontStyle = TMPro.FontStyles.Bold;
+
+        RectTransform rect = textObj.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = Vector2.zero;
+        rect.sizeDelta = new Vector2(800, 200);
+
+        // Fade in
+        float fadeTime = 0.3f;
+        float elapsed = 0f;
+        while (elapsed < fadeTime)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = elapsed / fadeTime;
+            warningText.color = new Color(1f, 0f, 0f, alpha);
+            yield return null;
+        }
+
+        // Hold
+        yield return new WaitForSeconds(2f);
+
+        // Fade out
+        elapsed = 0f;
+        while (elapsed < fadeTime)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = 1f - (elapsed / fadeTime);
+            warningText.color = new Color(1f, 0f, 0f, alpha);
+            yield return null;
+        }
+
+        // Cleanup
+        Destroy(canvasObj);
     }
 
     int ParseInt(TMP_InputField input, int defaultValue)
@@ -526,6 +635,32 @@ public class SimpleButtons : MonoBehaviour
         if (string.IsNullOrEmpty(input.text)) return defaultValue;
         if (int.TryParse(input.text, out int result))
             return Mathf.Max(0, result);
+        return defaultValue;
+    }
+
+    int ParseIntRaw(TMP_InputField input, int defaultValue)
+    {
+        if (input == null) return defaultValue;
+        if (string.IsNullOrEmpty(input.text)) return defaultValue;
+        if (int.TryParse(input.text, out int result))
+            return Mathf.Max(0, result);
+        return defaultValue;
+    }
+
+    int ParseIntClamped(TMP_InputField input, int defaultValue, int min, int max)
+    {
+        if (input == null) return defaultValue;
+        if (string.IsNullOrEmpty(input.text)) return defaultValue;
+        if (int.TryParse(input.text, out int result))
+        {
+            int clamped = Mathf.Clamp(result, min, max);
+            if (clamped != result)
+            {
+                Debug.LogWarning($"Input '{input.name}' clamped: {result} → {clamped} (limits: {min}-{max})");
+                input.text = clamped.ToString(); // Update the UI to show clamped value
+            }
+            return clamped;
+        }
         return defaultValue;
     }
 
