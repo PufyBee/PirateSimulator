@@ -2602,11 +2602,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 669398696461466496, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_AnchoredPosition.x
+<<<<<<< HEAD
       value: -5.499756
       objectReference: {fileID: 0}
     - target: {fileID: 669398696461466496, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: -24.399902
+=======
+      value: -5.499878
+      objectReference: {fileID: 0}
+    - target: {fileID: 669398696461466496, guid: 574583de82a650341871b5a51a787a5b, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -24.399933
+>>>>>>> 16ea526be519d0e72bb0cb98f0fed2232f13b69b
       objectReference: {fileID: 0}
     - target: {fileID: 921598001798720069, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_RaycastTarget
@@ -2706,11 +2714,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5624552770222116806, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_AnchoredPosition.x
+<<<<<<< HEAD
       value: -103.8999
       objectReference: {fileID: 0}
     - target: {fileID: 5624552770222116806, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: -24.399902
+=======
+      value: -103.89989
+      objectReference: {fileID: 0}
+    - target: {fileID: 5624552770222116806, guid: 574583de82a650341871b5a51a787a5b, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -24.399937
+>>>>>>> 16ea526be519d0e72bb0cb98f0fed2232f13b69b
       objectReference: {fileID: 0}
     - target: {fileID: 5736105786345362489, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -2834,7 +2850,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9086413328612232375, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_AnchoredPosition.y
+<<<<<<< HEAD
       value: -24.400024
+=======
+      value: -24.4
+>>>>>>> 16ea526be519d0e72bb0cb98f0fed2232f13b69b
       objectReference: {fileID: 0}
     - target: {fileID: 9164133483246612215, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_Pivot.x
