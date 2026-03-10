@@ -1,53 +1,45 @@
 ﻿using UnityEngine;
 
 /// <summary>
-/// Samples the map texture to determine if a position is water or land.
+/// Samples the MASK texture to determine if a position is water or land.
 /// 
-/// UPDATED: Now handles dark coastline outlines by treating dark pixels as land.
+/// MASK SYSTEM (Simple & Reliable):
+/// - White pixels = WATER (ships can go here)
+/// - Black pixels = LAND (ships cannot go here)
 /// 
-/// Logic:
-/// 1. If pixel is too dark overall → LAND (catches dark outlines)
-/// 2. If green is dominant → LAND (main landmass)
-/// 3. If blue is dominant and bright enough → WATER
-/// 4. Otherwise → LAND (safe default)
+/// Masks should be named: Malacca_12-9_mask, Guinea_12-9_mask, Aden_12-9_mask
+/// and placed in Assets/Maps/ (or a Resources folder)
 /// </summary>
 public class MapColorSampler : MonoBehaviour
 {
     public static MapColorSampler Instance { get; private set; }
 
-    [Header("Assign the SpriteRenderer of your map")]
+    [Header("=== MAP RENDERER ===")]
     public SpriteRenderer mapRenderer;
 
-    [Header("=== WATER DETECTION ===")]
-    [Tooltip("Water if Blue channel is greater than Green + this offset")]
-    public float blueDominanceOffset = 0.05f;
+    [Header("=== MASK TEXTURES ===")]
+    [Tooltip("Assign masks in order: Malacca, Aden, Guinea")]
+    public Texture2D[] maskTextures;
 
-    [Tooltip("Minimum blue brightness to count as water (0-1)")]
+    [Header("=== MASK SETTINGS ===")]
+    [Tooltip("Threshold for water detection (pixels brighter than this = water)")]
     [Range(0f, 1f)]
-    public float minBlue = 0.25f;
+    public float waterThreshold = 0.5f;
 
-    [Header("=== LAND DETECTION ===")]
-    [Tooltip("If green is dominant by this amount, it's land")]
-    public float greenDominanceOffset = 0.03f;
-
-    [Tooltip("Pixels darker than this (overall brightness) are treated as LAND. This catches dark coastline outlines!")]
-    [Range(0f, 0.5f)]
-    public float darkPixelThreshold = 0.15f;
-
-    [Header("=== COAST BUFFER (Anti-scraping) ===")]
+    [Header("=== COAST BUFFER ===")]
     [Tooltip("Check surrounding points to prevent ships from touching coastlines")]
     public bool useCoastBuffer = true;
 
-    [Tooltip("How far around each point to check (world units). Increase if ships still scrape coasts.")]
-    public float coastBufferWorld = 0.20f;
+    [Tooltip("How far around each point to check (world units)")]
+    public float coastBufferWorld = 0.5f;
 
     [Header("=== DEBUG ===")]
-    [Tooltip("Log color values when sampling (turn off for performance)")]
     public bool debugLogging = false;
 
-    private Texture2D tex;
+    private Texture2D currentMask;
     private Bounds worldBounds;
     private bool isInitialized = false;
+    private int currentMapIndex = 0;
 
     private void Awake()
     {
@@ -68,32 +60,81 @@ public class MapColorSampler : MonoBehaviour
             return;
         }
 
-        tex = mapRenderer.sprite.texture;
         worldBounds = mapRenderer.bounds;
 
-        // Check if texture is readable
-        try
+        // Get current map index from MapManager
+        if (MapManager.Instance != null)
         {
-            tex.GetPixel(0, 0);
-        }
-        catch (UnityException)
-        {
-            Debug.LogError("MapColorSampler: Texture is not readable! Go to texture import settings and enable 'Read/Write Enabled'");
-            enabled = false;
-            return;
+            currentMapIndex = MapManager.Instance.GetCurrentMapIndex();
         }
 
+        // Load the appropriate mask
+        LoadMaskForCurrentMap();
+
         isInitialized = true;
-        Debug.Log($"MapColorSampler initialized. Map bounds: {worldBounds}");
+        Debug.Log($"MapColorSampler initialized with mask. Map bounds: {worldBounds}");
+    }
+
+    /// <summary>
+    /// Load the mask texture for the current map
+    /// </summary>
+    public void LoadMaskForCurrentMap()
+    {
+        if (MapManager.Instance != null)
+        {
+            currentMapIndex = MapManager.Instance.GetCurrentMapIndex();
+        }
+
+        // Try to get mask from array
+        if (maskTextures != null && currentMapIndex < maskTextures.Length && maskTextures[currentMapIndex] != null)
+        {
+            currentMask = maskTextures[currentMapIndex];
+            Debug.Log($"MapColorSampler: Loaded mask from array for map index {currentMapIndex}");
+        }
+        else
+        {
+            // Fallback: try to load from Resources
+            string[] maskNames = { "Malacca_12-9_mask", "Aden_12-9_mask", "Guinea_12-9_mask" };
+            if (currentMapIndex < maskNames.Length)
+            {
+                currentMask = Resources.Load<Texture2D>($"Maps/{maskNames[currentMapIndex]}");
+                if (currentMask == null)
+                {
+                    currentMask = Resources.Load<Texture2D>(maskNames[currentMapIndex]);
+                }
+            }
+
+            if (currentMask != null)
+            {
+                Debug.Log($"MapColorSampler: Loaded mask '{maskNames[currentMapIndex]}' from Resources");
+            }
+            else
+            {
+                Debug.LogError($"MapColorSampler: No mask found for map index {currentMapIndex}! Assign masks in Inspector or place in Resources folder.");
+            }
+        }
+
+        // Check if mask is readable
+        if (currentMask != null)
+        {
+            try
+            {
+                currentMask.GetPixel(0, 0);
+            }
+            catch (UnityException)
+            {
+                Debug.LogError("MapColorSampler: Mask texture is not readable! Go to texture import settings and enable 'Read/Write Enabled'");
+                currentMask = null;
+            }
+        }
     }
 
     /// <summary>
     /// Check if a world position is navigable water.
-    /// Returns true if the ship can sail there.
     /// </summary>
     public bool IsWater(Vector2 worldPos)
     {
-        if (!isInitialized || tex == null) return true;
+        if (!isInitialized || currentMask == null) return true;
 
         if (!useCoastBuffer)
             return IsWaterPoint(worldPos);
@@ -115,7 +156,8 @@ public class MapColorSampler : MonoBehaviour
     }
 
     /// <summary>
-    /// Check a single point (no buffer).
+    /// Check a single point using the MASK (no buffer).
+    /// White = water, Black = land
     /// </summary>
     private bool IsWaterPoint(Vector2 worldPos)
     {
@@ -127,44 +169,19 @@ public class MapColorSampler : MonoBehaviour
         if (u < 0f || u > 1f || v < 0f || v > 1f)
             return true;
 
-        // Sample the texture
-        Color c = tex.GetPixelBilinear(u, v);
+        // Sample the MASK texture
+        Color c = currentMask.GetPixelBilinear(u, v);
 
-        // === DETECTION LOGIC ===
-
-        // 1. DARK PIXEL CHECK (catches coastline outlines!)
+        // Simple check: brightness > threshold = water
         float brightness = (c.r + c.g + c.b) / 3f;
-        if (brightness < darkPixelThreshold)
-        {
-            if (debugLogging)
-                Debug.Log($"LAND (dark): pos={worldPos}, brightness={brightness:F2}, color={c}");
-            return false; // Dark = land
-        }
+        bool isWater = brightness > waterThreshold;
 
-        // 2. GREEN DOMINANT = LAND
-        bool greenDominant = (c.g > c.b + greenDominanceOffset) && (c.g > c.r + greenDominanceOffset);
-        if (greenDominant)
-        {
-            if (debugLogging)
-                Debug.Log($"LAND (green): pos={worldPos}, color={c}");
-            return false;
-        }
-
-        // 3. BLUE DOMINANT AND BRIGHT ENOUGH = WATER
-        bool blueDominant = (c.b > c.g + blueDominanceOffset) && (c.b > c.r + blueDominanceOffset);
-        bool blueEnough = c.b >= minBlue;
-
-        if (blueDominant && blueEnough)
-        {
-            if (debugLogging)
-                Debug.Log($"WATER: pos={worldPos}, color={c}");
-            return true;
-        }
-
-        // 4. DEFAULT = LAND (safer than assuming water)
         if (debugLogging)
-            Debug.Log($"LAND (default): pos={worldPos}, color={c}");
-        return false;
+        {
+            Debug.Log($"IsWaterPoint: pos={worldPos}, brightness={brightness:F2}, isWater={isWater}");
+        }
+
+        return isWater;
     }
 
     /// <summary>
@@ -180,7 +197,7 @@ public class MapColorSampler : MonoBehaviour
     /// </summary>
     public Color GetColorAtPosition(Vector2 worldPos)
     {
-        if (tex == null) return Color.black;
+        if (currentMask == null) return Color.black;
 
         float u = Mathf.InverseLerp(worldBounds.min.x, worldBounds.max.x, worldPos.x);
         float v = Mathf.InverseLerp(worldBounds.min.y, worldBounds.max.y, worldPos.y);
@@ -188,13 +205,10 @@ public class MapColorSampler : MonoBehaviour
         if (u < 0f || u > 1f || v < 0f || v > 1f)
             return Color.black;
 
-        return tex.GetPixelBilinear(u, v);
+        return currentMask.GetPixelBilinear(u, v);
     }
 
 #if UNITY_EDITOR
-    /// <summary>
-    /// Editor tool: Click in scene view while holding Shift to test water detection.
-    /// </summary>
     private void OnDrawGizmosSelected()
     {
         if (!isInitialized) return;
@@ -202,6 +216,40 @@ public class MapColorSampler : MonoBehaviour
         // Draw map bounds
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireCube(worldBounds.center, worldBounds.size);
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (currentMask == null) return;
+
+        // Show current mask name in scene
+        UnityEditor.Handles.Label(
+            worldBounds.center + Vector3.up * (worldBounds.size.y * 0.5f + 5f),
+            $"MASK: {currentMask.name}\nIndex: {currentMapIndex}"
+        );
+
+        // Draw a grid of water/land points for visual debugging
+        if (debugLogging && isInitialized)
+        {
+            int gridSize = 20;
+            float stepX = worldBounds.size.x / gridSize;
+            float stepY = worldBounds.size.y / gridSize;
+
+            for (int x = 0; x <= gridSize; x++)
+            {
+                for (int y = 0; y <= gridSize; y++)
+                {
+                    Vector2 worldPos = new Vector2(
+                        worldBounds.min.x + x * stepX,
+                        worldBounds.min.y + y * stepY
+                    );
+
+                    bool water = IsWaterPoint(worldPos);
+                    Gizmos.color = water ? new Color(0, 0, 1, 0.3f) : new Color(1, 0, 0, 0.3f);
+                    Gizmos.DrawCube(new Vector3(worldPos.x, worldPos.y, 0), new Vector3(stepX * 0.8f, stepY * 0.8f, 0.1f));
+                }
+            }
+        }
     }
 #endif
 }

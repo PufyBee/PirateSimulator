@@ -143,10 +143,11 @@ public class MapManager : MonoBehaviour
     {
         if (MapColorSampler.Instance != null)
         {
-            // MapColorSampler should already reference the mapRenderer
-            // Just re-initialize it to update bounds
+            // Re-initialize to update bounds
             MapColorSampler.Instance.Initialize();
-            Debug.Log("MapManager: MapColorSampler updated");
+            // Load the correct mask for this map
+            MapColorSampler.Instance.LoadMaskForCurrentMap();
+            Debug.Log("MapManager: MapColorSampler updated with new mask");
         }
     }
 

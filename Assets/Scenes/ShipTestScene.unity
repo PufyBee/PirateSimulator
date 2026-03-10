@@ -742,7 +742,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: 21300000, guid: 50f039e45cb86a949b10e945951bb4bc, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -2597,12 +2597,16 @@ PrefabInstance:
       value: UICanvas
       objectReference: {fileID: 0}
     - target: {fileID: 669398696461466496, guid: 574583de82a650341871b5a51a787a5b, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: -236.6076
+      objectReference: {fileID: 0}
+    - target: {fileID: 669398696461466496, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: -3.75708
+      value: -5.499756
       objectReference: {fileID: 0}
     - target: {fileID: 669398696461466496, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -23.699951
+      value: -24.399902
       objectReference: {fileID: 0}
     - target: {fileID: 921598001798720069, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_RaycastTarget
@@ -2697,12 +2701,16 @@ PrefabInstance:
       value: 420.30005
       objectReference: {fileID: 0}
     - target: {fileID: 5624552770222116806, guid: 574583de82a650341871b5a51a787a5b, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: -236.6076
+      objectReference: {fileID: 0}
+    - target: {fileID: 5624552770222116806, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: -92.30005
+      value: -103.8999
       objectReference: {fileID: 0}
     - target: {fileID: 5624552770222116806, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -23.699951
+      value: -24.399902
       objectReference: {fileID: 0}
     - target: {fileID: 5736105786345362489, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -2817,12 +2825,16 @@ PrefabInstance:
       value: 0.0036621094
       objectReference: {fileID: 0}
     - target: {fileID: 9086413328612232375, guid: 574583de82a650341871b5a51a787a5b, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: -236.6076
+      objectReference: {fileID: 0}
+    - target: {fileID: 9086413328612232375, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 83.1001
+      value: 92
       objectReference: {fileID: 0}
     - target: {fileID: 9086413328612232375, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -23.699951
+      value: -24.400024
       objectReference: {fileID: 0}
     - target: {fileID: 9164133483246612215, guid: 574583de82a650341871b5a51a787a5b, type: 3}
       propertyPath: m_Pivot.x
@@ -3900,7 +3912,7 @@ MonoBehaviour:
   nightTint: {r: 0.2, g: 0.2, b: 0.4, a: 0.5}
   clearTint: {r: 1, g: 1, b: 1, a: 0}
   foggyTint: {r: 0.8, g: 0.8, b: 0.85, a: 0.4}
-  stormyTint: {r: 0.3, g: 0.3, b: 0.35, a: 0.45}
+  stormyTint: {r: 0.3, g: 0.3, b: 0.35, a: 0.33333334}
   calmTint: {r: 1, g: 0.95, b: 0.8, a: 0.1}
   transitionSpeed: 2
   enableRainEffect: 1
@@ -6982,8 +6994,8 @@ Transform:
   m_GameObject: {fileID: 1868357139}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -140.7788, y: 1.3569, z: 1}
-  m_LocalScale: {x: 44.104908, y: 31.295235, z: 1}
+  m_LocalPosition: {x: -140, y: 0.65, z: 1}
+  m_LocalScale: {x: 35, y: 35, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -7016,13 +7028,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mapRenderer: {fileID: 1868357140}
-  blueDominanceOffset: 0.05
-  minBlue: 0.2
-  greenDominanceOffset: 0.03
-  darkPixelThreshold: 0.12
+  maskTextures:
+  - {fileID: 2800000, guid: b42aa122a412f73448123095ebd7082e, type: 3}
+  - {fileID: 2800000, guid: f56ab04cfbe1d7d48a11d1a9a45e4f80, type: 3}
+  - {fileID: 2800000, guid: c6319fd960842a84dbc1abbcb9f9a5f8, type: 3}
+  waterThreshold: 0.5
   useCoastBuffer: 1
   coastBufferWorld: 1
-  debugLogging: 0
+  debugLogging: 1
 --- !u!1 &1869526866
 GameObject:
   m_ObjectHideFlags: 0
