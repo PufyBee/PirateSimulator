@@ -191,7 +191,7 @@ public class EnvironmentVisualOverlay : MonoBehaviour
         // Update vignette for night
         if (vignetteImage != null)
         {
-            float vignetteAlpha = (time == TimeOfDay.Night) ? 0.6f : 
+            float vignetteAlpha = (time == TimeOfDay.Night) ? 0.3f : 
                                   (time == TimeOfDay.Evening) ? 0.2f : 0f;
             vignetteImage.color = new Color(0, 0, 0, vignetteAlpha);
         }
@@ -322,22 +322,24 @@ public class EnvironmentVisualOverlay : MonoBehaviour
         // Main module - rain drops for 2D game
         var main = ps.main;
         main.loop = true;
-        main.startLifetime = 1.5f;
+        main.startLifetime = .4f;
         main.startSpeed = 0f;  // We use velocity instead
         main.startSize3D = false;
-        main.startSize = new ParticleSystem.MinMaxCurve(1.5f, 3f);  // MUCH bigger rain drops
-        main.startColor = new Color(0.6f, 0.7f, 0.9f, 0.5f);  // Blue-ish rain
+        main.startSize = new ParticleSystem.MinMaxCurve(0.5f, 3f);  // MUCH bigger rain drops
+        main.startColor = new Color(0.68f, 0.83f, 0.82f, 0.2f);  // Blue-ish rain
         main.maxParticles = 5000;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
+        //main.simulationSpeed = 1.5f;
         main.gravityModifier = 0f;
 
         // Emission - lots of rain
         var emission = ps.emission;
-        emission.rateOverTime = 3000f;
+        emission.rateOverTime = 150f;
 
         // Shape - cover the entire visible camera area
         var shape = ps.shape;
         shape.shapeType = ParticleSystemShapeType.Rectangle;
+        shape.position = new Vector3(0f,65f,0f); //offset to prevent spawning on screen
         shape.scale = new Vector3(camWidth + 50f, camHeight + 50f, 1f);  // Cover full view + buffer
         shape.rotation = new Vector3(0, 0, 0);
 
@@ -345,16 +347,17 @@ public class EnvironmentVisualOverlay : MonoBehaviour
         var velocity = ps.velocityOverLifetime;
         velocity.enabled = true;
         velocity.space = ParticleSystemSimulationSpace.World;
-        velocity.x = 15f;     // Wind - scaled up
-        velocity.y = -150f;   // Fall down FAST - scaled for large view
+        velocity.x = 15f;     // Wind - slightly moving left
+        velocity.y = -200f;   // Falling downward
         velocity.z = 0f;
+        velocity.speedModifier = 1.6f; //faster to increase length of the rain
 
         // Make particles stretch based on velocity (looks like rain streaks)
         var renderer = rainObj.GetComponent<ParticleSystemRenderer>();
         renderer.sortingOrder = 100;  // In front of everything except UI
         renderer.renderMode = ParticleSystemRenderMode.Stretch;
         renderer.lengthScale = 0f;
-        renderer.velocityScale = 0.05f;  // Stretch based on speed
+        renderer.velocityScale = 0.1f;  // Stretch based on speed
         
         // Material
         Material rainMat = new Material(Shader.Find("Sprites/Default"));

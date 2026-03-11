@@ -3906,13 +3906,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   autoCreateOverlay: 1
   overlayImage: {fileID: 0}
-  morningTint: {r: 1, g: 0.9, b: 0.7, a: 0.15}
+  morningTint: {r: 0.98490566, g: 0.8666667, b: 0.4509804, a: 0.1764706}
   noonTint: {r: 1, g: 1, b: 0.9, a: 0.05}
-  eveningTint: {r: 1, g: 0.6, b: 0.4, a: 0.25}
+  eveningTint: {r: 0.94716984, g: 0.35086277, b: 0.20551786, a: 0.25}
   nightTint: {r: 0.2, g: 0.2, b: 0.4, a: 0.5}
   clearTint: {r: 1, g: 1, b: 1, a: 0}
   foggyTint: {r: 0.8, g: 0.8, b: 0.85, a: 0.4}
-  stormyTint: {r: 0.3, g: 0.3, b: 0.35, a: 0.33333334}
+  stormyTint: {r: 0.3, g: 0.3, b: 0.35, a: 0.16078432}
   calmTint: {r: 1, g: 0.95, b: 0.8, a: 0.1}
   transitionSpeed: 2
   enableRainEffect: 1
