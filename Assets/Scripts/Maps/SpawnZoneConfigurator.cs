@@ -17,6 +17,7 @@ using System.Collections.Generic;
 /// - Snaps to valid water positions
 /// - Presets load defaults, users can customize
 /// - Locks when simulation starts
+/// - CLAMPS markers to visible map area (prevents losing markers behind UI)
 /// 
 /// SETUP:
 /// 1. Add this script to a GameObject in your scene
@@ -38,6 +39,20 @@ public class SpawnZoneConfigurator : MonoBehaviour
     public bool showZoneRectangles = true;
     public bool showConnectionLines = true;
     public bool validateWaterOnly = true;
+
+    [Header("=== UI BOUNDS (Prevent markers behind UI) ===")]
+    [Tooltip("Percentage of screen width to reserve on LEFT for UI (0-0.5)")]
+    [Range(0f, 0.5f)]
+    public float leftUIMargin = 0.15f;
+    [Tooltip("Percentage of screen width to reserve on RIGHT for UI (0-0.5)")]
+    [Range(0f, 0.5f)]
+    public float rightUIMargin = 0.15f;
+    [Tooltip("Percentage of screen height to reserve on TOP for UI (0-0.5)")]
+    [Range(0f, 0.5f)]
+    public float topUIMargin = 0.05f;
+    [Tooltip("Percentage of screen height to reserve on BOTTOM for UI (0-0.5)")]
+    [Range(0f, 0.5f)]
+    public float bottomUIMargin = 0.05f;
 
     [Header("=== COLORS ===")]
     public Color merchantColor = new Color(1f, 0.85f, 0.2f);
@@ -116,15 +131,71 @@ public class SpawnZoneConfigurator : MonoBehaviour
             
             Vector3 pos = marker.transform.position;
             
+            // Clamp to valid screen bounds first
+            pos = ClampToValidBounds(pos);
+            
             if (!MapColorSampler.Instance.IsWater(pos))
             {
                 Vector3 validPos = FindNearestWater(pos);
+                validPos = ClampToValidBounds(validPos);
                 marker.transform.position = validPos;
                 Debug.Log($"SpawnZoneConfigurator: Moved {id} from land to water");
+            }
+            else
+            {
+                marker.transform.position = pos;
             }
         }
         
         SyncToSpawner();
+    }
+
+    /// <summary>
+    /// Get the valid world bounds for marker placement (excludes UI areas)
+    /// </summary>
+    public Bounds GetValidWorldBounds()
+    {
+        if (mainCamera == null) mainCamera = Camera.main;
+        if (mainCamera == null) return new Bounds(Vector3.zero, Vector3.one * 1000f);
+
+        // Get screen corners in world space
+        float screenWidth = Screen.width;
+        float screenHeight = Screen.height;
+
+        // Calculate pixel margins
+        float leftPixels = screenWidth * leftUIMargin;
+        float rightPixels = screenWidth * (1f - rightUIMargin);
+        float bottomPixels = screenHeight * bottomUIMargin;
+        float topPixels = screenHeight * (1f - topUIMargin);
+
+        // Convert to world positions
+        Vector3 bottomLeft = mainCamera.ScreenToWorldPoint(new Vector3(leftPixels, bottomPixels, 0));
+        Vector3 topRight = mainCamera.ScreenToWorldPoint(new Vector3(rightPixels, topPixels, 0));
+
+        // Create bounds
+        Vector3 center = (bottomLeft + topRight) / 2f;
+        center.z = 0;
+        Vector3 size = new Vector3(
+            Mathf.Abs(topRight.x - bottomLeft.x),
+            Mathf.Abs(topRight.y - bottomLeft.y),
+            1f
+        );
+
+        return new Bounds(center, size);
+    }
+
+    /// <summary>
+    /// Clamp a world position to valid bounds (outside UI areas)
+    /// </summary>
+    public Vector3 ClampToValidBounds(Vector3 worldPos)
+    {
+        Bounds bounds = GetValidWorldBounds();
+        
+        worldPos.x = Mathf.Clamp(worldPos.x, bounds.min.x, bounds.max.x);
+        worldPos.y = Mathf.Clamp(worldPos.y, bounds.min.y, bounds.max.y);
+        worldPos.z = 0;
+        
+        return worldPos;
     }
 
     void Initialize()
@@ -429,31 +500,12 @@ public class SpawnZoneConfigurator : MonoBehaviour
     {
         if (shipSpawner == null) return;
 
-        SetMarkerPosition("MerchantSpawn", ClampToReasonableBounds(shipSpawner.merchantSpawnCenter));
-        SetMarkerPosition("MerchantDest", ClampToReasonableBounds(shipSpawner.merchantDestination));
-        SetMarkerPosition("PirateSpawn", ClampToReasonableBounds(shipSpawner.pirateSpawnCenter));
-        SetMarkerPosition("PiratePatrol", ClampToReasonableBounds(shipSpawner.piratePatrolPoint));
-        SetMarkerPosition("SecuritySpawn", ClampToReasonableBounds(shipSpawner.securitySpawnCenter));
-        SetMarkerPosition("SecurityPatrol", ClampToReasonableBounds(shipSpawner.securityPatrolPoint));
-    }
-
-    Vector2 ClampToReasonableBounds(Vector2 pos)
-    {
-        float maxDist = 200f;
-        
-        if (mainCamera != null)
-            maxDist = mainCamera.orthographicSize * 2f;
-        
-        if (pos.magnitude > maxDist * 2f)
-        {
-            Debug.LogWarning($"SpawnZoneConfigurator: Position {pos} too far, resetting to origin");
-            return Vector2.zero;
-        }
-        
-        pos.x = Mathf.Clamp(pos.x, -maxDist, maxDist);
-        pos.y = Mathf.Clamp(pos.y, -maxDist, maxDist);
-        
-        return pos;
+        SetMarkerPosition("MerchantSpawn", ClampToValidBounds(shipSpawner.merchantSpawnCenter));
+        SetMarkerPosition("MerchantDest", ClampToValidBounds(shipSpawner.merchantDestination));
+        SetMarkerPosition("PirateSpawn", ClampToValidBounds(shipSpawner.pirateSpawnCenter));
+        SetMarkerPosition("PiratePatrol", ClampToValidBounds(shipSpawner.piratePatrolPoint));
+        SetMarkerPosition("SecuritySpawn", ClampToValidBounds(shipSpawner.securitySpawnCenter));
+        SetMarkerPosition("SecurityPatrol", ClampToValidBounds(shipSpawner.securityPatrolPoint));
     }
 
     public void SyncToSpawner()
@@ -490,6 +542,9 @@ public class SpawnZoneConfigurator : MonoBehaviour
     {
         if (isLocked) return;
 
+        // ALWAYS clamp to valid bounds first
+        newPosition = ClampToValidBounds(newPosition);
+
         if (validateWaterOnly && MapColorSampler.Instance != null)
         {
             bool isValid = MapColorSampler.Instance.IsWater(newPosition);
@@ -497,6 +552,7 @@ public class SpawnZoneConfigurator : MonoBehaviour
             if (!isValid)
             {
                 Vector3 validPos = FindNearestWater(newPosition);
+                validPos = ClampToValidBounds(validPos);
                 
                 if (markers.ContainsKey(markerId))
                 {
@@ -505,6 +561,22 @@ public class SpawnZoneConfigurator : MonoBehaviour
                 }
                 
                 Debug.Log($"Cannot place {markerId} on land! Snapped to water.");
+            }
+            else
+            {
+                // Position is valid water, update marker
+                if (markers.ContainsKey(markerId))
+                {
+                    markers[markerId].transform.position = newPosition;
+                }
+            }
+        }
+        else
+        {
+            // No water validation, just clamp
+            if (markers.ContainsKey(markerId))
+            {
+                markers[markerId].transform.position = newPosition;
             }
         }
 
@@ -515,6 +587,7 @@ public class SpawnZoneConfigurator : MonoBehaviour
     {
         if (MapColorSampler.Instance == null) return landPos;
 
+        Bounds validBounds = GetValidWorldBounds();
         float searchRadius = 5f;
         float maxRadius = 100f;
         int samples = 16;
@@ -530,13 +603,16 @@ public class SpawnZoneConfigurator : MonoBehaviour
                     0
                 );
 
+                // Make sure test position is within valid bounds
+                if (!validBounds.Contains(testPos)) continue;
+
                 if (MapColorSampler.Instance.IsWater(testPos))
                     return testPos;
             }
             searchRadius += 5f;
         }
 
-        return landPos;
+        return ClampToValidBounds(landPos);
     }
 
     IEnumerator FlashInvalid(DraggableZoneMarker marker)
@@ -629,7 +705,7 @@ public class SpawnZoneConfigurator : MonoBehaviour
 }
 
 /// <summary>
-/// Makes a marker draggable with mouse
+/// Makes a marker draggable with mouse - CLAMPS to valid bounds while dragging
 /// </summary>
 public class DraggableZoneMarker : MonoBehaviour
 {
@@ -680,7 +756,15 @@ public class DraggableZoneMarker : MonoBehaviour
 
         Vector3 mouseWorld = cam.ScreenToWorldPoint(Input.mousePosition);
         mouseWorld.z = 0;
-        transform.position = mouseWorld + offset;
+        Vector3 newPos = mouseWorld + offset;
+        
+        // CLAMP while dragging so marker never goes behind UI
+        if (configurator != null)
+        {
+            newPos = configurator.ClampToValidBounds(newPos);
+        }
+        
+        transform.position = newPos;
     }
 
     void OnMouseUp()
