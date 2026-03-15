@@ -113,6 +113,9 @@ MonoBehaviour:
   stuckTicksBeforeRepath: 20
   showPathGizmos: 1
   logMovement: 1
+  scoutRayDistance: 15
+  scoutRayCount: 16
+  minViableRayLength: 0.5
 --- !u!114 &6341143047312627907
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -134,6 +137,9 @@ MonoBehaviour:
   retreatRange: 6
   distressCallRange: 12
   packHuntingRange: 8
+  forceAssessmentRange: 10
+  minimumForceRatio: 0.5
+  enableEscortCapture: 1
   enableVisualEffects: 1
   explosionPrefab: {fileID: 0}
   captureEffectPrefab: {fileID: 0}

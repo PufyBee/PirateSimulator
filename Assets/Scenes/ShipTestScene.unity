@@ -905,6 +905,7 @@ GameObject:
   - component: {fileID: 153718192}
   - component: {fileID: 153718191}
   - component: {fileID: 153718190}
+  - component: {fileID: 153718193}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -986,6 +987,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &153718193
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 153718189}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 270c896556e7a7a4a80eb9e9a5dbc661, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lastClickedPosition: {x: 0, y: 0}
+  showOnScreen: 1
+  copyKey: 99
 --- !u!114 &173810649 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 9055668747000313377, guid: 574583de82a650341871b5a51a787a5b, type: 3}
@@ -2201,6 +2217,10 @@ MonoBehaviour:
   showZoneRectangles: 1
   showConnectionLines: 1
   validateWaterOnly: 1
+  leftUIMargin: 0
+  rightUIMargin: 0.15
+  topUIMargin: 0
+  bottomUIMargin: 0
   merchantColor: {r: 1, g: 0.85, b: 0.2, a: 1}
   pirateColor: {r: 0.9, g: 0.2, b: 0.2, a: 1}
   securityColor: {r: 0.2, g: 0.6, b: 1, a: 1}
@@ -2458,7 +2478,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   gridResolution: 500
   smoothPath: 0
-  maxSearchNodes: 15000
+  maxSearchNodes: 2147483647
   showDebugGrid: 1
   logPathfinding: 0
 --- !u!4 &768946784
@@ -3856,10 +3876,10 @@ MonoBehaviour:
   malaccaMerchantDest: {x: -60, y: -150}
   malaccaPirateCenter: {x: -225, y: -30}
   malaccaPirateSize: {x: 20, y: 20}
-  malaccaPiratePatrol: {x: 116, y: -30}
+  malaccaPiratePatrol: {x: 45, y: -30}
   malaccaSecurityCenter: {x: -350, y: 50}
   malaccaSecuritySize: {x: 20, y: 20}
-  malaccaSecurityPatrol: {x: 116, y: -111}
+  malaccaSecurityPatrol: {x: 7, y: -111}
   adenMerchantCenter: {x: -350, y: 75}
   adenMerchantSize: {x: 20, y: 30}
   adenMerchantDest: {x: -60, y: 0}
@@ -4776,6 +4796,11 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 28}
   m_Pivot: {x: 0.5, y: 1}
+--- !u!1 &1391540688 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1973584067758676026, guid: 574583de82a650341871b5a51a787a5b, type: 3}
+  m_PrefabInstance: {fileID: 815269509}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1393952249
 GameObject:
   m_ObjectHideFlags: 0
@@ -7033,8 +7058,8 @@ MonoBehaviour:
   - {fileID: 2800000, guid: f56ab04cfbe1d7d48a11d1a9a45e4f80, type: 3}
   - {fileID: 2800000, guid: c6319fd960842a84dbc1abbcb9f9a5f8, type: 3}
   waterThreshold: 0.5
-  useCoastBuffer: 1
-  coastBufferWorld: 1
+  useCoastBuffer: 0
+  coastBufferWorld: 0
   debugLogging: 0
 --- !u!1 &1869526866
 GameObject:
@@ -7285,6 +7310,8 @@ MonoBehaviour:
   setupPanel: {fileID: 1686841377}
   controlsPanel: {fileID: 1608273611}
   startButtonRoot: {fileID: 463347388}
+  mapSelectionPanel: {fileID: 1391540688}
+  rightSidePanel: {fileID: 0}
   statusText: {fileID: 0}
   timeText: {fileID: 0}
   statsText: {fileID: 0}

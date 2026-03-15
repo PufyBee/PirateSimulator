@@ -12,20 +12,6 @@ using TMPro;
 /// - Rqmt19: Adjustable Speed (slider OR buttons)
 /// - Rqmt25: Condition Indicator (runtime badge)
 /// - Rqmt26: Prevent Invalid Actions (button states)
-/// 
-/// WIRING GUIDE (Inspector):
-/// ─────────────────────────
-/// startBtn          → UICanvas > Start Button (Root) > Start Button (Shadow) > Start Button (Button)
-/// pauseBtn          → UICanvas > Main Controls (Root) > Pause Button (Button)
-/// stepBtn           → UICanvas > Main Controls (Root) > Step Button (Button)
-/// resetBtn          → UICanvas > Main Controls (Root) > Restart Button (Button)
-/// 
-/// speedSlider       → (Optional) Any UI Slider for speed control
-/// speedUpBtn        → (Optional) Button to increase speed
-/// speedDownBtn      → (Optional) Button to decrease speed
-/// speedValueText    → (Optional) Text showing current speed
-/// 
-/// conditionBadge    → (Optional) Text element to show "Morning / Clear" during run
 /// </summary>
 public class SimpleButtons : MonoBehaviour
 {
@@ -42,9 +28,7 @@ public class SimpleButtons : MonoBehaviour
     public SimulationEngine engine;
 
     [Header("=== LIVE STATS (Use one or the other) ===")]
-    [Tooltip("Old style: Separate panel that replaces setup")]
     public LiveResultsPanel liveResultsPanel;
-    [Tooltip("New style: Self-contained overlay (recommended)")]
     public RuntimeStatsOverlay runtimeStatsOverlay;
 
     [Header("=== SHIP COUNT INPUTS (Initial Ships) ===")]
@@ -53,8 +37,11 @@ public class SimpleButtons : MonoBehaviour
     public TMP_InputField securityCountInput;
 
     [Header("=== SPAWN RATE INPUTS ===")]
+    [Tooltip("Ticks between merchant spawns (higher = slower spawning)")]
     public TMP_InputField merchantSpawnInput;
+    [Tooltip("Ticks between pirate spawns (higher = slower spawning)")]
     public TMP_InputField pirateSpawnInput;
+    [Tooltip("Ticks between security spawns (higher = slower spawning)")]
     public TMP_InputField securitySpawnInput;
 
     [Header("=== RUN SETTINGS INPUTS ===")]
@@ -71,12 +58,16 @@ public class SimpleButtons : MonoBehaviour
     public Button[] mapButtons = new Button[3];
 
     [Header("=== UI PANELS ===")]
-    [Tooltip("Setup Bar (Root) - the setup/config panel")]
+    [Tooltip("Setup Bar (Root) - the setup/config panel on LEFT side")]
     public GameObject setupPanel;
     [Tooltip("Main Controls (Root) - pause/step/restart panel")]
     public GameObject controlsPanel;
     [Tooltip("Start Button (Root) - hide after starting")]
     public GameObject startButtonRoot;
+    [Tooltip("Map Selection Panel - HIDE completely during runtime")]
+    public GameObject mapSelectionPanel;
+    [Tooltip("Right side panel - HIDE during runtime if assigned")]
+    public GameObject rightSidePanel;
 
     [Header("=== DISPLAY TEXT (Optional) ===")]
     public TMP_Text statusText;
@@ -84,16 +75,12 @@ public class SimpleButtons : MonoBehaviour
     public TMP_Text statsText;
 
     [Header("=== SPEED CONTROL (Rqmt19) ===")]
-    [Tooltip("Option A: Use a slider")]
     public Slider speedSlider;
-    [Tooltip("Option B: Use buttons (if no slider)")]
     public Button speedUpBtn;
     public Button speedDownBtn;
-    [Tooltip("Shows current speed value")]
     public TMP_Text speedValueText;
 
     [Header("=== CONDITION INDICATOR (Rqmt25) ===")]
-    [Tooltip("Shows current conditions during run (e.g. 'Morning / Clear')")]
     public TMP_Text conditionBadge;
 
     [Header("=== CONFIRMATION DIALOG ===")]
@@ -114,19 +101,16 @@ public class SimpleButtons : MonoBehaviour
     private const float MAX_SPEED = 20f;
     private const float SPEED_STEP = 1f;
 
-    // Colors for button selection highlighting
     private Color selectedColor = new Color(0.8f, 0.65f, 0.3f);
     private Color unselectedColor = new Color(0.6f, 0.5f, 0.35f);
 
     void Start()
     {
-        // Connect main buttons
         if (startBtn) startBtn.onClick.AddListener(OnStartClicked);
         if (pauseBtn) pauseBtn.onClick.AddListener(OnPauseClicked);
         if (stepBtn) stepBtn.onClick.AddListener(OnStepClicked);
         if (resetBtn) resetBtn.onClick.AddListener(OnResetClicked);
 
-        // Connect Time of Day buttons
         for (int i = 0; i < todButtons.Length; i++)
         {
             if (todButtons[i] != null)
@@ -136,7 +120,6 @@ public class SimpleButtons : MonoBehaviour
             }
         }
 
-        // Connect Weather buttons
         for (int i = 0; i < weatherButtons.Length; i++)
         {
             if (weatherButtons[i] != null)
@@ -146,7 +129,6 @@ public class SimpleButtons : MonoBehaviour
             }
         }
 
-        // Connect Map buttons
         for (int i = 0; i < mapButtons.Length; i++)
         {
             if (mapButtons[i] != null)
@@ -156,8 +138,6 @@ public class SimpleButtons : MonoBehaviour
             }
         }
 
-        // === SPEED CONTROL (Rqmt19) ===
-        // Option A: Slider
         if (speedSlider)
         {
             speedSlider.minValue = MIN_SPEED;
@@ -165,31 +145,38 @@ public class SimpleButtons : MonoBehaviour
             speedSlider.value = currentSpeed;
             speedSlider.onValueChanged.AddListener(OnSpeedSliderChanged);
         }
-        // Option B: Buttons (if no slider)
         if (speedUpBtn) speedUpBtn.onClick.AddListener(OnSpeedUp);
         if (speedDownBtn) speedDownBtn.onClick.AddListener(OnSpeedDown);
         
-        // Initialize speed display
         UpdateSpeedDisplay();
 
-        // Initial UI state: show setup, hide controls
         if (setupPanel) setupPanel.SetActive(true);
         if (controlsPanel) controlsPanel.SetActive(false);
         if (startButtonRoot) startButtonRoot.SetActive(true);
-
-        // Hide condition badge during setup (Rqmt25)
+        if (mapSelectionPanel) mapSelectionPanel.SetActive(true);
+        if (rightSidePanel) rightSidePanel.SetActive(true);
         if (conditionBadge) conditionBadge.gameObject.SetActive(false);
 
-        // Highlight default selections
         UpdateTodButtonVisuals();
         UpdateWeatherButtonVisuals();
-
         SetStatus("READY");
         UpdatePauseButtonText();
 
-        // Show spawn zones for setup
         if (spawnZoneConfigurator != null)
             spawnZoneConfigurator.ShowForSetup();
+
+        LogInputConnections();
+    }
+
+    void LogInputConnections()
+    {
+        Debug.Log("=== SimpleButtons Input Connections ===");
+        Debug.Log($"merchantCountInput: {(merchantCountInput != null ? "OK" : "NULL")}");
+        Debug.Log($"pirateCountInput: {(pirateCountInput != null ? "OK" : "NULL")}");
+        Debug.Log($"securityCountInput: {(securityCountInput != null ? "OK" : "NULL")}");
+        Debug.Log($"merchantSpawnInput: {(merchantSpawnInput != null ? "OK" : "NULL")}");
+        Debug.Log($"pirateSpawnInput: {(pirateSpawnInput != null ? "OK" : "NULL")}");
+        Debug.Log($"securitySpawnInput: {(securitySpawnInput != null ? "OK" : "NULL")}");
     }
 
     void Update()
@@ -199,8 +186,6 @@ public class SimpleButtons : MonoBehaviour
         UpdateConditionBadge();
     }
 
-    // ===== BUTTON HANDLERS =====
-
     void OnStartClicked()
     {
         Debug.Log("START clicked");
@@ -208,25 +193,20 @@ public class SimpleButtons : MonoBehaviour
         ApplySettingsFromInputs();
         ApplyEnvironmentSettings();
 
-        // Lock spawn zones
         if (spawnZoneConfigurator == null)
             spawnZoneConfigurator = FindObjectOfType<SpawnZoneConfigurator>();
-
         if (spawnZoneConfigurator != null)
         {
             spawnZoneConfigurator.SyncToSpawner();
             spawnZoneConfigurator.Lock();
         }
 
-        // Lock coastal defenses
         if (coastalDefenseManager == null)
             coastalDefenseManager = FindObjectOfType<CoastalDefenseManager>();
-
         if (coastalDefenseManager != null)
             coastalDefenseManager.Lock();
 
-        // DISABLE MAP BUTTONS during runtime
-        SetMapButtonsInteractable(false);
+        SetRuntimeUIState(true);
 
         if (engine) engine.StartRun();
 
@@ -234,19 +214,14 @@ public class SimpleButtons : MonoBehaviour
         UpdatePauseButtonText();
         SetStatus("RUNNING");
 
-        // Switch UI: hide setup, show controls
         if (setupPanel) setupPanel.SetActive(false);
         if (startButtonRoot) startButtonRoot.SetActive(false);
         if (controlsPanel) controlsPanel.SetActive(true);
-
-        // Show condition badge during run (Rqmt25)
         if (conditionBadge) conditionBadge.gameObject.SetActive(true);
 
-        // Show live stats (supports both old and new style)
         if (liveResultsPanel) liveResultsPanel.ShowLiveResults();
         if (runtimeStatsOverlay) runtimeStatsOverlay.Show();
         
-        // Auto-find RuntimeStatsOverlay if not assigned
         if (runtimeStatsOverlay == null)
         {
             runtimeStatsOverlay = FindObjectOfType<RuntimeStatsOverlay>();
@@ -256,8 +231,6 @@ public class SimpleButtons : MonoBehaviour
 
     void OnPauseClicked()
     {
-        Debug.Log("PAUSE/RESUME clicked");
-
         if (engine == null) return;
 
         if (isPaused)
@@ -272,21 +245,16 @@ public class SimpleButtons : MonoBehaviour
             isPaused = true;
             SetStatus("PAUSED");
         }
-
         UpdatePauseButtonText();
     }
 
     void OnStepClicked()
     {
-        Debug.Log("STEP clicked");
-
-        // If first step, apply settings and switch to controls view
         if (engine != null && engine.GetTickCount() == 0)
         {
             ApplySettingsFromInputs();
             ApplyEnvironmentSettings();
 
-            // Lock spawn zones
             if (spawnZoneConfigurator == null)
                 spawnZoneConfigurator = FindObjectOfType<SpawnZoneConfigurator>();
             if (spawnZoneConfigurator != null)
@@ -295,10 +263,8 @@ public class SimpleButtons : MonoBehaviour
                 spawnZoneConfigurator.Lock();
             }
 
-            // DISABLE MAP BUTTONS during runtime
-            SetMapButtonsInteractable(false);
+            SetRuntimeUIState(true);
 
-            // Switch UI
             if (setupPanel) setupPanel.SetActive(false);
             if (startButtonRoot) startButtonRoot.SetActive(false);
             if (controlsPanel) controlsPanel.SetActive(true);
@@ -312,8 +278,6 @@ public class SimpleButtons : MonoBehaviour
 
     void OnResetClicked()
     {
-        Debug.Log("RESET clicked");
-
         bool needsWarning = engine != null && engine.GetTickCount() > 0;
 
         if (needsWarning && confirmationDialog != null)
@@ -332,7 +296,6 @@ public class SimpleButtons : MonoBehaviour
 
     void DoReset()
     {
-        // Show end of run panel if simulation ran
         if (engine != null && engine.GetTickCount() > 0)
         {
             if (EndOfRunPanel.Instance != null)
@@ -345,62 +308,60 @@ public class SimpleButtons : MonoBehaviour
         UpdatePauseButtonText();
         SetStatus("READY");
 
-        // Unlock spawn zones
         if (spawnZoneConfigurator != null)
             spawnZoneConfigurator.ShowForSetup();
-
-        // Unlock coastal defenses
         if (coastalDefenseManager != null)
             coastalDefenseManager.Unlock();
 
-        // RE-ENABLE MAP BUTTONS
-        SetMapButtonsInteractable(true);
+        SetRuntimeUIState(false);
 
-        // Switch UI: show setup, hide controls
         if (setupPanel) setupPanel.SetActive(true);
         if (startButtonRoot) startButtonRoot.SetActive(true);
         if (controlsPanel) controlsPanel.SetActive(false);
-
-        // Hide condition badge (Rqmt25 - only show during run)
         if (conditionBadge) conditionBadge.gameObject.SetActive(false);
 
-        // Hide live stats (both old and new style)
         if (liveResultsPanel) liveResultsPanel.HideLiveResults();
         if (runtimeStatsOverlay) runtimeStatsOverlay.Hide();
         if (RuntimeStatsOverlay.Instance != null) RuntimeStatsOverlay.Instance.Hide();
     }
 
-    // ===== TIME OF DAY / WEATHER / MAP BUTTONS =====
+    void SetRuntimeUIState(bool isRunning)
+    {
+        // COMPLETELY HIDE map selection panel during runtime
+        if (mapSelectionPanel != null)
+        {
+            mapSelectionPanel.SetActive(!isRunning);
+        }
+
+        // COMPLETELY HIDE right side panel during runtime
+        if (rightSidePanel != null)
+        {
+            rightSidePanel.SetActive(!isRunning);
+        }
+
+        SetMapButtonsInteractable(!isRunning);
+    }
 
     void OnTimeOfDaySelected(int index)
     {
         selectedTimeOfDay = index;
-        Debug.Log($"Time of Day: {GetTimeOfDayName(index)}");
-
         if (EnvironmentSettings.Instance != null)
             EnvironmentSettings.Instance.SetTimeOfDay(index);
-
         UpdateTodButtonVisuals();
     }
 
     void OnWeatherSelected(int index)
     {
         selectedWeather = index;
-        Debug.Log($"Weather: {GetWeatherName(index)}");
-
         if (EnvironmentSettings.Instance != null)
             EnvironmentSettings.Instance.SetWeather(index);
-
         UpdateWeatherButtonVisuals();
     }
 
     void OnMapSelected(int index)
     {
-        Debug.Log($"Map selected: {index}");
-
         if (MapManager.Instance != null)
             MapManager.Instance.LoadMap(index);
-
         if (spawnZoneConfigurator != null)
             spawnZoneConfigurator.ShowForSetup();
     }
@@ -434,11 +395,9 @@ public class SimpleButtons : MonoBehaviour
         for (int i = 0; i < todButtons.Length; i++)
         {
             if (todButtons[i] == null) continue;
-
             Image img = todButtons[i].GetComponent<Image>();
             if (img != null)
                 img.color = (i == selectedTimeOfDay) ? selectedColor : unselectedColor;
-
             TMP_Text txt = todButtons[i].GetComponentInChildren<TMP_Text>();
             if (txt != null)
                 txt.fontStyle = (i == selectedTimeOfDay) ? FontStyles.Bold | FontStyles.Underline : FontStyles.Normal;
@@ -450,18 +409,14 @@ public class SimpleButtons : MonoBehaviour
         for (int i = 0; i < weatherButtons.Length; i++)
         {
             if (weatherButtons[i] == null) continue;
-
             Image img = weatherButtons[i].GetComponent<Image>();
             if (img != null)
                 img.color = (i == selectedWeather) ? selectedColor : unselectedColor;
-
             TMP_Text txt = weatherButtons[i].GetComponentInChildren<TMP_Text>();
             if (txt != null)
                 txt.fontStyle = (i == selectedWeather) ? FontStyles.Bold | FontStyles.Underline : FontStyles.Normal;
         }
     }
-
-    // === SPEED CONTROL (Rqmt19) ===
 
     void OnSpeedSliderChanged(float value)
     {
@@ -497,63 +452,38 @@ public class SimpleButtons : MonoBehaviour
             speedValueText.text = $"{currentSpeed:F1}x";
     }
 
-    // === CONDITION BADGE (Rqmt25) ===
-
     void UpdateConditionBadge()
     {
         if (conditionBadge == null) return;
-        
         if (EnvironmentSettings.Instance != null)
-        {
             conditionBadge.text = EnvironmentSettings.Instance.GetConditionsSummary();
-        }
         else
-        {
             conditionBadge.text = $"{GetTimeOfDayName(selectedTimeOfDay)} / {GetWeatherName(selectedWeather)}";
-        }
     }
-
-    // ===== APPLY SETTINGS =====
 
     void ApplyEnvironmentSettings()
     {
         if (EnvironmentSettings.Instance == null) return;
-
         EnvironmentSettings.Instance.SetTimeOfDay(selectedTimeOfDay);
         EnvironmentSettings.Instance.SetWeather(selectedWeather);
-
-        Debug.Log($"Environment: {EnvironmentSettings.Instance.GetConditionsSummary()}");
     }
 
-    // === INPUT LIMITS (Crash Prevention) ===
-    private const int MAX_INITIAL_SHIPS = 50;      // Per type
-    private const int MAX_TOTAL_SHIPS = 100;       // All types combined
-    private const int MIN_SPAWN_INTERVAL = 10;     // Prevent spawn flooding
-    private const int MAX_DURATION = 100000;       // ~27 hours of sim time
-    private const int EASTER_EGG_THRESHOLD = 500;  // Trigger funny message
+    private const int MAX_INITIAL_SHIPS = 50;
+    private const int MAX_TOTAL_SHIPS = 100;
+    private const int MAX_DURATION = 100000;
+    
+    // Spawn rate conversion: user enters 1-10, we convert to ticks
+    // Higher number = faster spawning
+    private const int SPAWN_RATE_BASE = 100; // At rate 1, spawn every 100 ticks
 
     void ApplySettingsFromInputs()
     {
         if (engine == null) return;
 
-        // Parse raw values first to check for easter egg
-        int rawMerchants = ParseIntRaw(merchantCountInput, 2);
-        int rawPirates = ParseIntRaw(pirateCountInput, 1);
-        int rawSecurity = ParseIntRaw(securityCountInput, 1);
-        int rawTotal = rawMerchants + rawPirates + rawSecurity;
-
-        // Easter egg check
-        if (rawTotal > EASTER_EGG_THRESHOLD)
-        {
-            StartCoroutine(ShowEasterEggWarning(rawTotal));
-        }
-
-        // Parse with limits
         int merchants = ParseIntClamped(merchantCountInput, 2, 0, MAX_INITIAL_SHIPS);
         int pirates = ParseIntClamped(pirateCountInput, 1, 0, MAX_INITIAL_SHIPS);
         int security = ParseIntClamped(securityCountInput, 1, 0, MAX_INITIAL_SHIPS);
 
-        // Enforce total ship limit
         int totalShips = merchants + pirates + security;
         if (totalShips > MAX_TOTAL_SHIPS)
         {
@@ -561,81 +491,43 @@ public class SimpleButtons : MonoBehaviour
             merchants = Mathf.FloorToInt(merchants * scale);
             pirates = Mathf.FloorToInt(pirates * scale);
             security = Mathf.FloorToInt(security * scale);
-            Debug.LogWarning($"Total ships clamped to {MAX_TOTAL_SHIPS}. Adjusted: M={merchants}, P={pirates}, S={security}");
         }
 
         engine.initialMerchants = merchants;
         engine.initialPirates = pirates;
         engine.initialSecurity = security;
 
-        // Spawn intervals (higher = less frequent, so enforce minimum)
-        engine.merchantSpawnInterval = ParseIntClamped(merchantSpawnInput, 50, MIN_SPAWN_INTERVAL, 10000);
-        engine.pirateSpawnInterval = ParseIntClamped(pirateSpawnInput, 80, MIN_SPAWN_INTERVAL, 10000);
-        engine.securitySpawnInterval = ParseIntClamped(securitySpawnInput, 100, MIN_SPAWN_INTERVAL, 10000);
+        // Convert spawn RATE (1-10, higher=faster) to spawn INTERVAL (ticks between spawns)
+        // Rate 0 = disabled (set to very high interval)
+        // Rate 1 = slow (100 ticks between spawns)
+        // Rate 5 = medium (20 ticks between spawns)
+        // Rate 10 = fast (10 ticks between spawns)
+        int merchantRate = ParseIntClamped(merchantSpawnInput, 5, 0, 10);
+        int pirateRate = ParseIntClamped(pirateSpawnInput, 3, 0, 10);
+        int securityRate = ParseIntClamped(securitySpawnInput, 3, 0, 10);
 
-        // Duration and seed (seed can be anything)
+        engine.merchantSpawnInterval = ConvertRateToInterval(merchantRate);
+        engine.pirateSpawnInterval = ConvertRateToInterval(pirateRate);
+        engine.securitySpawnInterval = ConvertRateToInterval(securityRate);
+
         engine.maxTicks = ParseIntClamped(durationInput, 0, 0, MAX_DURATION);
         engine.runSeed = ParseInt(seedInput, 12345);
 
-        Debug.Log($"Applied: M={engine.initialMerchants}, P={engine.initialPirates}, S={engine.initialSecurity}");
+        Debug.Log($"=== SETTINGS APPLIED ===");
+        Debug.Log($"Initial: M={engine.initialMerchants}, P={engine.initialPirates}, S={engine.initialSecurity}");
+        Debug.Log($"Spawn Rates: M={merchantRate}→{engine.merchantSpawnInterval}t, P={pirateRate}→{engine.pirateSpawnInterval}t, S={securityRate}→{engine.securitySpawnInterval}t");
     }
 
-    System.Collections.IEnumerator ShowEasterEggWarning(int attemptedTotal)
+    /// <summary>
+    /// Convert user-friendly rate (0-10) to tick interval.
+    /// 0 = disabled (99999 ticks)
+    /// 1 = slowest (100 ticks)
+    /// 10 = fastest (10 ticks)
+    /// </summary>
+    int ConvertRateToInterval(int rate)
     {
-        // Create canvas if needed
-        GameObject canvasObj = new GameObject("EasterEggCanvas");
-        Canvas canvas = canvasObj.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 9999; // On top of everything
-
-        CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920, 1080);
-
-        // Create text
-        GameObject textObj = new GameObject("WarningText");
-        textObj.transform.SetParent(canvasObj.transform, false);
-
-        TMPro.TMP_Text warningText = textObj.AddComponent<TMPro.TextMeshProUGUI>();
-        warningText.text = $"Nice try. Ships capped at {MAX_TOTAL_SHIPS}.\n<size=24>({attemptedTotal:N0} requested)</size>";
-        warningText.fontSize = 48;
-        warningText.color = Color.red;
-        warningText.alignment = TMPro.TextAlignmentOptions.Center;
-        warningText.fontStyle = TMPro.FontStyles.Bold;
-
-        RectTransform rect = textObj.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0.5f, 0.5f);
-        rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = Vector2.zero;
-        rect.sizeDelta = new Vector2(800, 200);
-
-        // Fade in
-        float fadeTime = 0.3f;
-        float elapsed = 0f;
-        while (elapsed < fadeTime)
-        {
-            elapsed += Time.deltaTime;
-            float alpha = elapsed / fadeTime;
-            warningText.color = new Color(1f, 0f, 0f, alpha);
-            yield return null;
-        }
-
-        // Hold
-        yield return new WaitForSeconds(2f);
-
-        // Fade out
-        elapsed = 0f;
-        while (elapsed < fadeTime)
-        {
-            elapsed += Time.deltaTime;
-            float alpha = 1f - (elapsed / fadeTime);
-            warningText.color = new Color(1f, 0f, 0f, alpha);
-            yield return null;
-        }
-
-        // Cleanup
-        Destroy(canvasObj);
+        if (rate <= 0) return 99999; // Effectively disabled
+        return Mathf.Max(10, SPAWN_RATE_BASE / rate);
     }
 
     int ParseInt(TMP_InputField input, int defaultValue)
@@ -647,33 +539,23 @@ public class SimpleButtons : MonoBehaviour
         return defaultValue;
     }
 
-    int ParseIntRaw(TMP_InputField input, int defaultValue)
-    {
-        if (input == null) return defaultValue;
-        if (string.IsNullOrEmpty(input.text)) return defaultValue;
-        if (int.TryParse(input.text, out int result))
-            return Mathf.Max(0, result);
-        return defaultValue;
-    }
-
     int ParseIntClamped(TMP_InputField input, int defaultValue, int min, int max)
     {
-        if (input == null) return defaultValue;
+        if (input == null) 
+        {
+            Debug.LogWarning($"Input field NULL, using default: {defaultValue}");
+            return defaultValue;
+        }
         if (string.IsNullOrEmpty(input.text)) return defaultValue;
         if (int.TryParse(input.text, out int result))
         {
             int clamped = Mathf.Clamp(result, min, max);
             if (clamped != result)
-            {
-                Debug.LogWarning($"Input '{input.name}' clamped: {result} → {clamped} (limits: {min}-{max})");
-                input.text = clamped.ToString(); // Update the UI to show clamped value
-            }
+                input.text = clamped.ToString();
             return clamped;
         }
         return defaultValue;
     }
-
-    // ===== UI UPDATES =====
 
     void UpdatePauseButtonText()
     {
@@ -686,7 +568,6 @@ public class SimpleButtons : MonoBehaviour
         if (statusText)
         {
             statusText.text = text;
-
             switch (text)
             {
                 case "RUNNING": statusText.color = Color.green; break;
@@ -700,7 +581,6 @@ public class SimpleButtons : MonoBehaviour
     void UpdateTimeDisplay()
     {
         if (timeText == null || engine == null) return;
-
         int ticks = engine.GetTickCount();
         int ticksPerHour = 60;
         int startHour = 6;
@@ -729,7 +609,6 @@ public class SimpleButtons : MonoBehaviour
         if (statsText == null) return;
 
         int merchants = 0, pirates = 0, security = 0;
-
         if (ShipSpawner.Instance != null)
         {
             foreach (var ship in ShipSpawner.Instance.GetActiveShips())
@@ -752,42 +631,16 @@ public class SimpleButtons : MonoBehaviour
             defeated = engine.GetPiratesDefeated();
         }
 
-        statsText.text = $"SHIPS\n" +
-                        $"Merchants: {merchants}\n" +
-                        $"Pirates: {pirates}\n" +
-                        $"Security: {security}\n\n" +
-                        $"OUTCOMES\n" +
-                        $"Escaped: {escaped}\n" +
-                        $"Captured: {captured}\n" +
-                        $"Defeated: {defeated}";
+        statsText.text = $"SHIPS\nMerchants: {merchants}\nPirates: {pirates}\nSecurity: {security}\n\nOUTCOMES\nEscaped: {escaped}\nCaptured: {captured}\nDefeated: {defeated}";
     }
-
-    // ===== MAP BUTTON LOCK =====
 
     void SetMapButtonsInteractable(bool interactable)
     {
         foreach (var btn in mapButtons)
-        {
-            if (btn != null)
-                btn.interactable = interactable;
-        }
-
-        // Also disable time of day and weather buttons during runtime
+            if (btn != null) btn.interactable = interactable;
         foreach (var btn in todButtons)
-        {
-            if (btn != null)
-                btn.interactable = interactable;
-        }
-
+            if (btn != null) btn.interactable = interactable;
         foreach (var btn in weatherButtons)
-        {
-            if (btn != null)
-                btn.interactable = interactable;
-        }
-
-        if (!interactable)
-            Debug.Log("Map/Environment buttons LOCKED for runtime");
-        else
-            Debug.Log("Map/Environment buttons UNLOCKED for setup");
+            if (btn != null) btn.interactable = interactable;
     }
 }

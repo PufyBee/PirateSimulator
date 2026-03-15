@@ -24,7 +24,7 @@ public class Pathfinder : MonoBehaviour
 
     [Header("Performance")]
     [Tooltip("Max nodes to search before giving up (prevents freezing)")]
-    public int maxSearchNodes = 8000;
+    public int maxSearchNodes = 800000000;
 
     [Header("Debug")]
     public bool showDebugGrid = false;
