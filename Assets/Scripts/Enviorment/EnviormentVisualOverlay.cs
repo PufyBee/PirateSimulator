@@ -46,8 +46,11 @@ public class EnvironmentVisualOverlay : MonoBehaviour
 
     [Header("=== PARTICLE EFFECTS ===")]
     public bool enableRainEffect = true;
+    public bool enableWindEffect = true;
     public GameObject rainParticlePrefab;
+    public GameObject windParticlePrefab;
     private GameObject activeRainEffect;
+    private GameObject activeWindEffect;
 
     [Header("=== VIGNETTE (NIGHT) ===")]
     public bool enableNightVignette = false;  // Disabled by default - too dark
@@ -207,6 +210,19 @@ public class EnvironmentVisualOverlay : MonoBehaviour
         currentWeather = weather;
         UpdateTargetColor();
 
+        //Handles wind effects
+        if (enableWindEffect)
+        {
+            if (weather == Weather.Foggy)
+            {
+                StartWind();
+            }
+            else
+            {
+                StopWind();
+            }
+        }
+
         // Handle rain particles
         if (enableRainEffect)
         {
@@ -272,6 +288,102 @@ public class EnvironmentVisualOverlay : MonoBehaviour
         {
             overlayImage.color = currentOverlayColor;
         }
+    }
+
+    private void StartWind()
+    {
+        if (activeWindEffect != null) return;
+
+        if (windParticlePrefab != null)
+        {
+            activeWindEffect = Instantiate(windParticlePrefab);
+        }
+        else
+        {
+            // Create simple wind effect procedurally
+            activeWindEffect = CreateProceduralWind();
+        }   
+    }
+
+    private void StopWind()
+    {
+        if (activeWindEffect != null)
+        {
+            Destroy(activeWindEffect);
+            activeWindEffect = null;
+        }   
+    }
+    private GameObject CreateProceduralWind()
+    {
+        GameObject windObj = new GameObject("WindEffect");
+        
+        // Position at Z = -5 so it's in front of the map
+        windObj.transform.position = new Vector3(0, 0, -5);
+
+        ParticleSystem ps = windObj.AddComponent<ParticleSystem>();
+        
+        // Get camera size to scale rain appropriately
+        float camHeight = 250f;  // Approximate for ortho size ~123
+        float camWidth = camHeight * 1.7f;  // Approximate aspect ratio
+        
+        if (Camera.main != null && Camera.main.orthographic)
+        {
+            camHeight = Camera.main.orthographicSize * 2f;
+            camWidth = camHeight * Camera.main.aspect;
+        }
+        
+        // Main module - wind particles
+        var main = ps.main;
+        main.loop = true;
+        main.startLifetime = 3f;
+        main.startSpeed = 0f;  // We use velocity instead
+        main.startSize3D = false;
+        main.startSize = 0.5f;  // Size
+        main.startColor = new Color(0.99f, 0.99f, 0.99f, 0.5f);  // Transparent White
+        main.maxParticles = 5000;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        //main.simulationSpeed = 1.5f;
+        main.gravityModifier = 0f;
+
+        // Emission - Number of particles generated
+        var emission = ps.emission;
+        emission.rateOverTime = 30f;
+
+        // Shape - cover the entire visible camera area
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Rectangle;
+        shape.position = new Vector3(-400f,25f,0f); //offset to prevent spawning on screen
+        shape.scale = new Vector3(camWidth/4f, camHeight + 50f, 1f);  // Cover full view + buffer
+        shape.rotation = new Vector3(0, 0, 0);
+
+        // Velocity - wind goes left to right
+        var velocity = ps.velocityOverLifetime;
+        velocity.enabled = true;
+        velocity.space = ParticleSystemSimulationSpace.World;
+        velocity.x = new ParticleSystem.MinMaxCurve(200f, 250f);     // Wind - slightly moving left with alts
+        velocity.y = new ParticleSystem.MinMaxCurve(0f, 0f);   
+        velocity.z = new ParticleSystem.MinMaxCurve(0f, 0f); 
+        velocity.orbitalZ = 0.14f;
+        velocity.speedModifier = 1.6f; //faster to increase length
+
+        // Make particles stretch based on velocity 
+        var renderer = windObj.GetComponent<ParticleSystemRenderer>();
+        renderer.sortingOrder = 101;  // In front of everything except UI
+        renderer.renderMode = ParticleSystemRenderMode.Stretch;
+        renderer.lengthScale = 0f;
+        renderer.velocityScale = 0.1f;  // Stretch based on speed
+        
+        // Material
+        Material windMat = new Material(Shader.Find("Sprites/Default"));
+        windMat.color = new Color(1f, 1f, 1f, 0.4f);
+        renderer.material = windMat;
+
+        // Make rain follow camera
+        RainFollowCamera followScript = windObj.AddComponent<RainFollowCamera>();
+        
+        Debug.Log($"Rain created - Coverage: {camWidth + 50f} x {camHeight + 50f}");
+        
+        return windObj;
     }
 
     // ===== RAIN EFFECT =====
