@@ -191,6 +191,8 @@ public class HelpPanel : MonoBehaviour
             "• <b>Gulf of Aden</b> - Somalia, Yemen, Djibouti\n" +
             "• <b>Gulf of Guinea</b> - Nigeria, Cameroon, Gabon");
 
+        AddRegionalStatsSection();
+
         // === CLOSE BUTTON ===
         CreateCloseButton(helpPanelObject.transform);
 
@@ -309,5 +311,33 @@ public class HelpPanel : MonoBehaviour
 
         LayoutElement le = hintObj.AddComponent<LayoutElement>();
         le.preferredHeight = 20;
+    }
+    private void AddRegionalStatsSection()
+    {
+        var malacca = RegionalData.Malacca.Stats;
+        var aden = RegionalData.Aden.Stats;
+        var guinea = RegionalData.Guinea.Stats;
+
+        string content =
+            $"<b>STRAIT OF MALACCA</b>\n" +
+            $"• Traffic: {malacca.GetTrafficString()}\n" +
+            $"• Trade: {malacca.GetTradeString()}\n" +
+            $"• Peak piracy: {malacca.peakPiracyYear} ({malacca.peakIncidents} incidents)\n" +
+            $"• Current risk: {malacca.currentRiskLevel}\n\n" +
+
+            $"<b>GULF OF ADEN</b>\n" +
+            $"• Traffic: {aden.GetTrafficString()}\n" +
+            $"• Trade: {aden.GetTradeString()}\n" +
+            $"• Peak piracy: {aden.peakPiracyYear} ({aden.peakIncidents} attacks)\n" +
+            $"• Current risk: {aden.currentRiskLevel}\n\n" +
+
+            $"<b>GULF OF GUINEA</b>\n" +
+            $"• Traffic: {guinea.GetTrafficString()}\n" +
+            $"• Trade: {guinea.GetTradeString()}\n" +
+            $"• Peak piracy: {guinea.peakPiracyYear} (kidnappings)\n" +
+            $"• Current risk: {guinea.currentRiskLevel}\n" +
+            $"• Last: {guinea.lastMajorIncident}";
+
+        CreateSection(helpPanelObject.transform, "REAL-WORLD STATISTICS", content);
     }
 }

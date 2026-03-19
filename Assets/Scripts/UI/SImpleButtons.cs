@@ -192,6 +192,7 @@ public class SimpleButtons : MonoBehaviour
 
         ApplySettingsFromInputs();
         ApplyEnvironmentSettings();
+        //AudioManager.Instance.PlayMusic("Simulation");
 
         if (spawnZoneConfigurator == null)
             spawnZoneConfigurator = FindObjectOfType<SpawnZoneConfigurator>();

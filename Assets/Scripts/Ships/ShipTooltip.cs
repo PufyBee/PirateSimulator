@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using static MapManager;
+
 
 /// <summary>
 /// Ship Tooltip - Shows ship information on hover
@@ -36,6 +38,13 @@ public class ShipTooltip : MonoBehaviour
     public Color pirateColor = new Color(0.9f, 0.2f, 0.2f);     // Red
     public Color navyColor = new Color(0.2f, 0.5f, 0.9f);       // Blue
     public Color capturedColor = new Color(0.5f, 0.5f, 0.5f);   // Gray
+
+    [Header("=== REAL WORLD DATA ===")]
+    public bool showRealWorldFacts = true;
+    public Color factColor = new Color(0.7f, 0.9f, 1f); // Light blue
+    public Color merchantFactColor = new Color(0.7f, 0.9f, 1f);
+    public Color pirateFactColor = new Color(1f, 0.7f, 0.7f);
+    public Color navyFactColor = new Color(0.7f, 0.8f, 1f);
 
     // Internal
     private Canvas tooltipCanvas;
@@ -188,7 +197,7 @@ public class ShipTooltip : MonoBehaviour
         {
             if (identity != null)
             {
-                routeText.text = identity.GetRouteString();
+                routeText.text = identity.GetDetailedRouteString();
             }
             else
             {
@@ -209,10 +218,120 @@ public class ShipTooltip : MonoBehaviour
             speedText.text = $"Speed: {data.speedUnitsPerTick:F3} u/tick";
         }
 
-        // Extra info based on situation
-        if (extraText != null)
+        // REAL WORLD FACTS - Replace the old extra info
+        if (extraText != null && showRealWorldFacts)
         {
-            extraText.text = GetExtraInfo(data, behavior);
+            extraText.text = GetRealWorldFact(data, identity);
+            extraText.color = GetFactColor(data.type);
+        }
+    }
+
+    private Color GetFactColor(ShipType type)
+    {
+        return type switch
+        {
+            ShipType.Cargo => merchantFactColor,
+            ShipType.Pirate => pirateFactColor,
+            ShipType.Security => navyFactColor,
+            _ => Color.white
+        };
+    }
+
+    private string GetRealWorldFact(ShipData data, ShipIdentity identity)
+    {
+        if (identity == null) return "";
+
+        MapManager.MapRegion region = MapManager.MapRegion.StraitOfMalacca; // Default
+
+        if (MapManager.Instance != null)
+        {
+            region = MapManager.Instance.CurrentRegion;
+        }
+
+        switch (data.type)
+        {
+            // ========== CARGO SHIPS ==========
+            case ShipType.Cargo:
+                switch (region)
+                {
+                    case MapManager.MapRegion.StraitOfMalacca:
+                        return $"{RegionalData.Malacca.Stats.GetTrafficString()} • {RegionalData.Malacca.Stats.GetTradeString()}\n" +
+                               $"Departing from: {identity.regionalPortName}\n" +
+                               $"Carrying: {identity.regionalCargoType}\n" +
+                               $"{RegionalData.Malacca.Stats.GetValueString()} annual trade";
+
+                    case MapManager.MapRegion.GulfOfAden:
+                        return $"{RegionalData.Aden.Stats.GetTrafficString()} • {RegionalData.Aden.Stats.GetTradeString()}\n" +
+                               $"Departing from: {identity.regionalPortName}\n" +
+                               $"Current risk: {RegionalData.Aden.Stats.currentRiskLevel}\n" +
+                               $"NATO/EU patrols active";
+
+                    case MapManager.MapRegion.GulfOfGuinea:
+                        return $"{RegionalData.Guinea.Stats.GetTrafficString()} • {RegionalData.Guinea.Stats.GetTradeString()}\n" +
+                               $"Departing from: {identity.regionalPortName}\n" +
+                               $"HIGH RISK - Kidnapping hotspot\n" +
+                               $"Carrying: {identity.regionalCargoType}";
+
+                    default:
+                        return "";
+                }
+
+            // ========== PIRATE SHIPS ==========
+            case ShipType.Pirate:
+                switch (region)
+                {
+                    case MapManager.MapRegion.StraitOfMalacca:
+                        return $"Peak activity: 2004 ({RegionalData.Malacca.Stats.peakIncidents} attacks)\n" +
+                               $"Operating near: {identity.regionalHotspotName}\n" +
+                               $"{identity.regionalHotspotDescription}\n" +
+                               $"Now suppressed by {RegionalData.Malacca.NavalForces[0].name}";
+
+                    case MapManager.MapRegion.GulfOfAden:
+                        return $"Peak Somali piracy: 2011 ({RegionalData.Aden.Stats.peakIncidents} attacks)\n" +
+                               $"Base: {identity.regionalHotspotName}\n" +
+                               $"{identity.regionalHotspotDescription}\n" +
+                               $"Tactic: {identity.regionalTacticName}\n" +
+                               $"$160M ransoms paid 2008-2012";
+
+                    case MapManager.MapRegion.GulfOfGuinea:
+                        return $"CURRENT GLOBAL HOTSPOT\n" +
+                               $"Operating near: {identity.regionalHotspotName}\n" +
+                               $"{identity.regionalHotspotDescription}\n" +
+                               $"Tactic: {identity.regionalTacticName}\n" +
+                               $"Kidnapping for ransom - 130+ crew in 2020";
+
+                    default:
+                        return "";
+                }
+
+            // ========== NAVY SHIPS ==========
+            case ShipType.Security:
+                switch (region)
+                {
+                    case MapManager.MapRegion.StraitOfMalacca:
+                        return $"{identity.regionalNavyForce1}\n" +
+                               $"{identity.regionalNavyForce2}\n" +
+                               $"Protecting ports: {identity.regionalProtectedPort1}, {identity.regionalProtectedPort2}\n" +
+                               $"3 nations cooperating";
+
+                    case MapManager.MapRegion.GulfOfAden:
+                        return $"{identity.regionalNavyForce1}\n" +
+                               $"{identity.regionalNavyForce2}\n" +
+                               $"25+ nations patrolling\n" +
+                               $"Protecting {identity.regionalProtectedPort1}, {identity.regionalProtectedPort2} corridor";
+
+                    case MapManager.MapRegion.GulfOfGuinea:
+                        return $"{identity.regionalNavyForce1}\n" +
+                               $"{identity.regionalNavyForce2}\n" +
+                               $"Protecting {identity.regionalProtectedPort1}, {identity.regionalProtectedPort2}\n" +
+                               $"HIGH THREAT AREA";
+
+                    default:
+                        return "";
+                }
+
+            default:
+                return "";
         }
     }
 
@@ -238,30 +357,6 @@ public class ShipTooltip : MonoBehaviour
             case ShipState.Exited: return "✓ Escaped";
             default: return state.ToString();
         }
-    }
-
-    string GetExtraInfo(ShipData data, ShipBehavior behavior)
-    {
-        // Could show chase target, capture progress, etc.
-        if (data.state == ShipState.Captured)
-        {
-            return "Boarded by pirates";
-        }
-
-        if (data.type == ShipType.Cargo)
-        {
-            return "Carrying valuable cargo";
-        }
-        else if (data.type == ShipType.Pirate)
-        {
-            return "Hostile - hunting merchants";
-        }
-        else if (data.type == ShipType.Security)
-        {
-            return "Protecting shipping lanes";
-        }
-
-        return "";
     }
 
     Color GetShipColor(ShipType type, ShipState state)
