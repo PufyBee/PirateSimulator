@@ -152,10 +152,13 @@ public class EnvironmentSettings : MonoBehaviour
                 merchantSpawnMultiplier *= 0.7f;    // 30% fewer merchants (delayed shipments)
                 break;
 
-            case Weather.Calm:
-                // Ideal sailing conditions
-                speedMultiplier *= 1.2f;            // 20% faster
-                merchantSpawnMultiplier *= 1.25f;   // 25% more merchants (good shipping day)
+            case Weather.Thunderstorm:
+                // Severe conditions
+                speedMultiplier *= 0.5f;            // 50% slower (dangerous seas)
+                detectionMultiplier *= 0.4f;        // 60% reduced visibility
+                pirateSpawnMultiplier *= 0.3f;      // 70% fewer pirates (too risky)
+                merchantSpawnMultiplier *= 0.5f;    // 50% fewer merchants (ships shelter)
+                securitySpawnMultiplier *= 0.6f;    // 40% fewer security
                 break;
         }
     }
@@ -209,8 +212,8 @@ public enum TimeOfDay
 /// </summary>
 public enum Weather
 {
-    Clear = 0,      // Normal
-    Foggy = 1,      // Low visibility
-    Stormy = 2,     // Slow, dangerous
-    Calm = 3        // Fast, good conditions
+    Clear = 0,          // Normal
+    Foggy = 1,          // Low visibility
+    Stormy = 2,         // Slow, dangerous
+    Thunderstorm = 3    // Severe conditions
 }
