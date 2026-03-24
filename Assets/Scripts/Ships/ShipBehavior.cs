@@ -54,6 +54,12 @@ public class ShipBehavior : MonoBehaviour
     [Tooltip("If true, pirates will escort captured merchants instead of destroying them")]
     public bool enableEscortCapture = true;
 
+    [Header("=== AMBUSH BEHAVIOR ===")]
+    [Tooltip("Radius around ambush point — pirate activates when a merchant enters this radius")]
+    public float ambushTriggerRadius = 15f;
+    [Tooltip("If true, pirates are invisible while lurking at ambush points")]
+    public bool invisibleWhileLurking = true;
+
     [Header("=== PATHFINDING THROTTLE ===")]
     [Tooltip("Minimum ticks between SetDestination() calls (A* pathfinding)")]
     public int repathIntervalTicks = 10;
@@ -99,6 +105,11 @@ public class ShipBehavior : MonoBehaviour
     private bool isRespondingToDistress = false;
     private Vector2 distressPosition;
 
+    // === LURKING/AMBUSH STATE ===
+    private bool isLurking = false;
+    private Vector2 currentAmbushPoint;
+    private bool hasAmbushPoint = false;
+
     // === STATIC SHARED DATA ===
     private static List<Vector2> captureHotspots = new List<Vector2>();
     private static List<DistressCall> activeDistressCalls = new List<DistressCall>();
@@ -114,7 +125,8 @@ public class ShipBehavior : MonoBehaviour
         Retreating,
         Investigating,
         Responding,
-        Escorting
+        Escorting,
+        Lurking
     }
 
     private class DistressCall
@@ -266,6 +278,62 @@ public class ShipBehavior : MonoBehaviour
             return;
         }
 
+        // === LURKING AMBUSH SYSTEM ===
+        bool useAmbushSystem = TradeRouteManager.Instance != null && 
+                                TradeRouteManager.Instance.HasPirateBaseData();
+
+        if (useAmbushSystem)
+        {
+            if (!hasAmbushPoint)
+            {
+                currentAmbushPoint = TradeRouteManager.Instance.GetPirateAmbushPoint(
+                    controller.Data.shipId,
+                    new System.Random(controller.Data.shipId.GetHashCode())
+                );
+                if (currentAmbushPoint != Vector2.zero)
+                {
+                    hasAmbushPoint = true;
+                    ForceSetDestination(currentAmbushPoint);
+                    currentState = BehaviorState.Patrolling;
+                    SetPirateVisibility(false);
+                }
+            }
+
+            if (isLurking)
+            {
+                ShipController nearestMerchant = FindNearestMerchantInRadius(allShips, ambushTriggerRadius);
+                if (nearestMerchant != null)
+                {
+                    isLurking = false;
+                    SetPirateVisibility(true);
+                    controller.Data.state = ShipState.Moving;
+                    if (enableLogs)
+                        Debug.Log($"[{controller.Data.shipId}] AMBUSH! Attacking {nearestMerchant.Data.shipId}!");
+                }
+                else
+                {
+                    controller.Data.state = ShipState.Idle;
+                    return;
+                }
+            }
+
+            if (!isLurking && hasAmbushPoint && 
+                (currentState == BehaviorState.Patrolling || currentState == BehaviorState.Idle))
+            {
+                float distToAmbush = Vector2.Distance(controller.Data.position, currentAmbushPoint);
+                if (distToAmbush < 5f)
+                {
+                    isLurking = true;
+                    SetPirateVisibility(false);
+                    controller.Data.state = ShipState.Idle;
+                    currentState = BehaviorState.Lurking;
+                    if (enableLogs)
+                        Debug.Log($"[{controller.Data.shipId}] Lurking at ambush point...");
+                    return;
+                }
+            }
+        }
+
         // PRIORITY 1: Check for nearby security - RETREAT if outgunned!
         int nearbyPirates = CountNearbyShipsOfType(allShips, controller.Data.position, forceAssessmentRange, ShipType.Pirate);
         int nearbySecurity = CountNearbyShipsOfType(allShips, controller.Data.position, forceAssessmentRange, ShipType.Security);
@@ -401,17 +469,26 @@ public class ShipBehavior : MonoBehaviour
             }
         }
 
-        // PRIORITY 4: Patrol toward hotspots
-        if (captureHotspots.Count > 0 && currentState != BehaviorState.Chasing)
+        // PRIORITY 4: Return to ambush point or fallback patrol
+        if (currentState != BehaviorState.Chasing)
         {
-            Vector2 nearestHotspot = GetNearestHotspot();
-            float distToHotspot = Vector2.Distance(controller.Data.position, nearestHotspot);
-
-            if (distToHotspot > 2f)
+            if (useAmbushSystem && hasAmbushPoint)
             {
-                currentState = BehaviorState.Patrolling;
-                ThrottledSetDestination(nearestHotspot);
+                ReturnToAmbushPoint();
                 return;
+            }
+
+            if (captureHotspots.Count > 0)
+            {
+                Vector2 nearestHotspot = GetNearestHotspot();
+                float distToHotspot = Vector2.Distance(controller.Data.position, nearestHotspot);
+
+                if (distToHotspot > 2f)
+                {
+                    currentState = BehaviorState.Patrolling;
+                    ThrottledSetDestination(nearestHotspot);
+                    return;
+                }
             }
         }
 
@@ -437,6 +514,70 @@ public class ShipBehavior : MonoBehaviour
             Debug.Log($"[{controller.Data.shipId}] RETREATING from security!");
     }
 
+    // ==================== AMBUSH/LURKING HELPERS ====================
+
+    void SetPirateVisibility(bool visible)
+    {
+        if (!invisibleWhileLurking) return;
+        if (controller == null || controller.Data == null) return;
+        if (controller.Data.type != ShipType.Pirate) return;
+
+        if (spriteRenderer != null)
+            spriteRenderer.enabled = visible;
+
+        if (chaseLineRenderer != null && !visible)
+            chaseLineRenderer.enabled = false;
+
+        var childRenderers = controller.GetComponentsInChildren<Renderer>();
+        foreach (var r in childRenderers)
+            r.enabled = visible;
+    }
+
+    ShipController FindNearestMerchantInRadius(List<ShipController> allShips, float radius)
+    {
+        ShipController nearest = null;
+        float nearestDist = float.MaxValue;
+
+        foreach (var ship in allShips)
+        {
+            if (ship == null || ship.Data == null) continue;
+            if (ship.Data.type != ShipType.Cargo) continue;
+            if (ship.Data.state == ShipState.Captured ||
+                ship.Data.state == ShipState.Sunk ||
+                ship.Data.state == ShipState.Exited) continue;
+
+            float dist = Vector2.Distance(controller.Data.position, ship.Data.position);
+            if (dist <= radius && dist < nearestDist)
+            {
+                nearestDist = dist;
+                nearest = ship;
+            }
+        }
+
+        return nearest;
+    }
+
+    void ReturnToAmbushPoint()
+    {
+        if (!hasAmbushPoint) return;
+
+        float distToAmbush = Vector2.Distance(controller.Data.position, currentAmbushPoint);
+        
+        if (distToAmbush < 5f)
+        {
+            isLurking = true;
+            SetPirateVisibility(false);
+            controller.Data.state = ShipState.Idle;
+            currentState = BehaviorState.Lurking;
+        }
+        else
+        {
+            currentState = BehaviorState.Patrolling;
+            SetPirateVisibility(true);
+            ThrottledSetDestination(currentAmbushPoint);
+        }
+    }
+
     void StartEscortCapture(ShipController merchant)
     {
         if (merchant == null) return;
@@ -448,7 +589,20 @@ public class ShipBehavior : MonoBehaviour
         merchant.SetState(ShipState.Captured);
         merchant.Data.speedUnitsPerTick = controller.Data.speedUnitsPerTick * 0.8f;
 
-        if (ShipSpawner.Instance != null)
+        if (TradeRouteManager.Instance != null)
+        {
+            Vector2 homeBase = TradeRouteManager.Instance.GetPirateHomeBase(controller.Data.shipId);
+            if (homeBase != Vector2.zero)
+            {
+                escortDestination = homeBase;
+                TradeRouteManager.Instance.SetPirateReturning(controller.Data.shipId, true);
+            }
+            else if (ShipSpawner.Instance != null)
+                escortDestination = ShipSpawner.Instance.pirateSpawnCenter;
+            else
+                escortDestination = controller.Data.position + new Vector2(-20f, 0);
+        }
+        else if (ShipSpawner.Instance != null)
         {
             escortDestination = ShipSpawner.Instance.pirateSpawnCenter;
         }
@@ -672,13 +826,20 @@ public class ShipBehavior : MonoBehaviour
                     currentTarget = null;
                     currentState = BehaviorState.Patrolling;
                     isRespondingToDistress = false;
+
+                    if (TradeRouteManager.Instance != null)
+                        TradeRouteManager.Instance.NavyResumePatrol(controller);
                 }
                 else
                 {
                     currentState = BehaviorState.Chasing;
-                    
+
                     if (targetChanged)
+                    {
+                        if (TradeRouteManager.Instance != null)
+                            TradeRouteManager.Instance.NavyBreakPatrol(controller.Data.shipId);
                         ForceSetDestination(currentTarget.Data.position);
+                    }
                     else
                         ThrottledSetDestination(currentTarget.Data.position);
                 }
@@ -686,7 +847,16 @@ public class ShipBehavior : MonoBehaviour
             }
         }
 
-        // PRIORITY 3: Patrol hotspots
+        // PRIORITY 3: Route-based patrol loop or fallback
+        if (TradeRouteManager.Instance != null && TradeRouteManager.Instance.HasNavyPatrolData())
+        {
+            TradeRouteManager.Instance.UpdateNavyPatrol(controller);
+            currentState = BehaviorState.Patrolling;
+            currentTarget = null;
+            isRespondingToDistress = false;
+            return;
+        }
+
         if (captureHotspots.Count > 0)
         {
             Vector2 nearestHotspot = GetNearestHotspot();
@@ -718,9 +888,12 @@ public class ShipBehavior : MonoBehaviour
             if (ship.Data.type != ShipType.Pirate) continue;
             if (ship.Data.state == ShipState.Sunk) continue;
 
+            // Skip lurking pirates — they're hidden and undetectable by navy
+            ShipBehavior pirateBehavior = ship.GetComponent<ShipBehavior>();
+            if (pirateBehavior != null && pirateBehavior.currentState == BehaviorState.Lurking) continue;
+
             float dist = Vector2.Distance(controller.Data.position, ship.Data.position);
 
-            ShipBehavior pirateBehavior = ship.GetComponent<ShipBehavior>();
             bool isChasing = pirateBehavior != null &&
                 (pirateBehavior.currentState == BehaviorState.Chasing ||
                  pirateBehavior.currentState == BehaviorState.Capturing);
@@ -909,6 +1082,13 @@ public class ShipBehavior : MonoBehaviour
             if (ship.Data.state == ShipState.Captured ||
                 ship.Data.state == ShipState.Sunk ||
                 ship.Data.state == ShipState.Exited) continue;
+
+            // Skip lurking pirates — they're hidden
+            if (ship.Data.type == ShipType.Pirate)
+            {
+                ShipBehavior sb = ship.GetComponent<ShipBehavior>();
+                if (sb != null && sb.currentState == BehaviorState.Lurking) continue;
+            }
 
             if (Vector2.Distance(position, ship.Data.position) <= range)
                 count++;
@@ -1154,6 +1334,8 @@ public class ShipBehavior : MonoBehaviour
                 float escortPulse = (Mathf.Sin(Time.time * 4f) + 1f) / 2f;
                 spriteRenderer.color = Color.Lerp(originalColor, new Color(0.8f, 0.2f, 0.8f), escortPulse * 0.4f);
                 break;
+            case BehaviorState.Lurking:
+                break;
             default:
                 spriteRenderer.color = originalColor;
                 break;
@@ -1175,6 +1357,13 @@ public class ShipBehavior : MonoBehaviour
             if (ship.Data.state == ShipState.Captured ||
                 ship.Data.state == ShipState.Sunk ||
                 ship.Data.state == ShipState.Exited) continue;
+
+            // Skip lurking pirates — they're hidden and undetectable
+            if (ship.Data.type == ShipType.Pirate)
+            {
+                ShipBehavior sb = ship.GetComponent<ShipBehavior>();
+                if (sb != null && sb.currentState == BehaviorState.Lurking) continue;
+            }
 
             float dist = Vector2.Distance(controller.Data.position, ship.Data.position);
             if (dist < nearestDist)

@@ -134,6 +134,14 @@ MonoBehaviour:
   retreatRange: 6
   distressCallRange: 12
   packHuntingRange: 8
+  forceAssessmentRange: 10
+  minimumForceRatio: 0.5
+  enableEscortCapture: 1
+  ambushTriggerRadius: 100
+  invisibleWhileLurking: 1
+  repathIntervalTicks: 10
+  repathDistanceThreshold: 3
+  fleeRepathInterval: 8
   enableVisualEffects: 1
   explosionPrefab: {fileID: 0}
   captureEffectPrefab: {fileID: 0}
@@ -175,6 +183,15 @@ MonoBehaviour:
   originCountry: 
   destinationCountry: 
   fullTitle: 
+  regionalHotspotName: 
+  regionalHotspotDescription: 
+  regionalTacticName: 
+  regionalPortName: 
+  regionalCargoType: 
+  regionalNavyForce1: 
+  regionalNavyForce2: 
+  regionalProtectedPort1: 
+  regionalProtectedPort2: 
 --- !u!58 &-2437461989894956972
 CircleCollider2D:
   m_ObjectHideFlags: 0

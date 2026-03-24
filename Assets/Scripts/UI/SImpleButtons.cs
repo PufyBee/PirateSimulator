@@ -173,7 +173,13 @@ public class SimpleButtons : MonoBehaviour
         UpdatePauseButtonText();
 
         if (spawnZoneConfigurator != null)
-            spawnZoneConfigurator.ShowForSetup();
+        {
+            // Hide spawn zone markers if trade routes are configured for this map
+            if (TradeRouteManager.Instance != null && TradeRouteManager.Instance.HasRouteData())
+                spawnZoneConfigurator.gameObject.SetActive(false);
+            else
+                spawnZoneConfigurator.ShowForSetup();
+        }
 
         LogInputConnections();
     }
@@ -235,7 +241,11 @@ public class SimpleButtons : MonoBehaviour
             spawnZoneConfigurator = FindObjectOfType<SpawnZoneConfigurator>();
         if (spawnZoneConfigurator != null)
         {
-            spawnZoneConfigurator.SyncToSpawner();
+            // Only sync old spawn zones if NO trade routes are configured
+            if (TradeRouteManager.Instance == null || !TradeRouteManager.Instance.HasRouteData())
+            {
+                spawnZoneConfigurator.SyncToSpawner();
+            }
             spawnZoneConfigurator.Lock();
         }
 
@@ -342,12 +352,24 @@ public class SimpleButtons : MonoBehaviour
 
         if (engine) engine.ResetToNewRun();
 
+        // Reset trade route assignments
+        if (TradeRouteManager.Instance != null)
+            TradeRouteManager.Instance.ResetAllAssignments();
+
         isPaused = false;
         UpdatePauseButtonText();
         SetStatus("READY");
 
         if (spawnZoneConfigurator != null)
-            spawnZoneConfigurator.ShowForSetup();
+        {
+            if (TradeRouteManager.Instance != null && TradeRouteManager.Instance.HasRouteData())
+                spawnZoneConfigurator.gameObject.SetActive(false);
+            else
+            {
+                spawnZoneConfigurator.gameObject.SetActive(true);
+                spawnZoneConfigurator.ShowForSetup();
+            }
+        }
         if (coastalDefenseManager != null)
             coastalDefenseManager.Unlock();
 
@@ -398,8 +420,22 @@ public class SimpleButtons : MonoBehaviour
     {
         if (MapManager.Instance != null)
             MapManager.Instance.LoadMap(index);
+
+        // Switch trade route data to match new map
+        if (TradeRouteManager.Instance != null)
+            TradeRouteManager.Instance.SetMapIndex(index);
+
+        // Show/hide spawn zone markers based on whether this map has trade routes
         if (spawnZoneConfigurator != null)
-            spawnZoneConfigurator.ShowForSetup();
+        {
+            if (TradeRouteManager.Instance != null && TradeRouteManager.Instance.HasRouteData())
+                spawnZoneConfigurator.gameObject.SetActive(false);
+            else
+            {
+                spawnZoneConfigurator.gameObject.SetActive(true);
+                spawnZoneConfigurator.ShowForSetup();
+            }
+        }
     }
 
     string GetTimeOfDayName(int index)

@@ -3,25 +3,13 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// SIMULATION ENGINE - High-Performance Multi-Tick System
+/// SIMULATION ENGINE - High-Performance Multi-Tick + Trade Route Integration
 /// 
-/// KEY CHANGES FROM ORIGINAL:
-/// 1. Update()-based tick loop instead of coroutine (no WaitForSeconds ceiling)
-/// 2. Runs MULTIPLE ticks per frame at high speeds (200x+ supported)
-/// 3. Real-time correlation: 1 tick = 15 sim-minutes by default
-/// 4. Time budget per frame prevents freezing at extreme speeds
-/// 5. Applies environment multipliers to spawn rates, speeds, detection
-/// 
-/// REAL-WORLD TIME SCALE:
-/// - 1 tick = 15 simulated minutes (configurable via simMinutesPerTick)
-/// - At 1x speed: ~4 ticks/sec = 1 sim-hour per second
-/// - At 200x: ~800 ticks/sec = 200 sim-hours per second
-/// 
-/// MAP SCALE (Malacca baseline):
-/// - 1 Unity unit ≈ 1.44 km
-/// - Cargo ship (13 kn): ~4.2 units/tick
-/// - Pirate skiff (28 kn): ~9.0 units/tick  
-/// - Naval patrol (20 kn): ~6.4 units/tick
+/// TRADE ROUTE CHANGES (on top of the multi-tick system):
+/// 1. DoOneTick() now updates merchant trade routes (advances waypoints)
+/// 2. HandleShipState() checks offscreen despawn via TradeRouteManager
+/// 3. ResetToNewRun() clears TradeRouteManager assignments
+/// 4. All changes are guarded by null checks — works fine without TradeRouteManager
 /// </summary>
 public class SimulationEngine : MonoBehaviour
 {
@@ -39,7 +27,7 @@ public class SimulationEngine : MonoBehaviour
     public float speedMultiplier = 1f;
 
     [Tooltip("Max milliseconds to spend on ticks per frame (prevents freezing)")]
-    public float maxTickBudgetMs = 12f; // ~12ms leaves room for rendering at 60fps
+    public float maxTickBudgetMs = 12f;
 
     [Header("=== RUN SETTINGS ===")]
     public int maxTicks = 0;
@@ -171,12 +159,15 @@ public class SimulationEngine : MonoBehaviour
         ShipBehavior.ResetSharedData();
         CoastalDefense.ResetAllBatteries();
 
+        // === NEW: Reset trade route assignments ===
+        if (TradeRouteManager.Instance != null)
+            TradeRouteManager.Instance.ResetAllAssignments();
+
         Debug.Log("Simulation RESET");
     }
 
     /// <summary>
-    /// Set speed multiplier directly (replaces SetTickInterval).
-    /// 1 = real-time-ish, 100 = 100x faster, 200 = 200x faster.
+    /// Set speed multiplier directly.
     /// </summary>
     public void SetSpeedMultiplier(float multiplier)
     {
@@ -185,8 +176,6 @@ public class SimulationEngine : MonoBehaviour
 
     /// <summary>
     /// LEGACY COMPATIBILITY: SetTickInterval still works.
-    /// Converts interval to speed multiplier internally.
-    /// tickInterval of 0.25 = 4 ticks/sec = 1x speed (at baseTicksPerSecond=4)
     /// </summary>
     public void SetTickInterval(float seconds)
     {
@@ -201,20 +190,15 @@ public class SimulationEngine : MonoBehaviour
     {
         if (!isRunning || isPaused) return;
 
-        // Calculate how many ticks should happen this frame
         float targetTicksPerSecond = baseTicksPerSecond * speedMultiplier;
         tickAccumulator += targetTicksPerSecond * Time.deltaTime;
 
-        // Clamp accumulator to prevent spiral of death after lag spikes
-        // At 200x with base 4 tps = 800 tps target. At 60fps that's ~13 ticks/frame.
-        // Cap at something reasonable to prevent freezing.
-        float maxTicksPerFrame = targetTicksPerSecond / 30f; // assume minimum 30fps
-        maxTicksPerFrame = Mathf.Max(maxTicksPerFrame, 1f);   // always at least 1
-        tickAccumulator = Mathf.Min(tickAccumulator, maxTicksPerFrame * 2f); // allow 2x burst
+        float maxTicksPerFrame = targetTicksPerSecond / 30f;
+        maxTicksPerFrame = Mathf.Max(maxTicksPerFrame, 1f);
+        tickAccumulator = Mathf.Min(tickAccumulator, maxTicksPerFrame * 2f);
 
-        // Run ticks with time budget
         ticksThisFrame = 0;
-        float frameStartTime = Time.realtimeSinceStartup * 1000f; // ms
+        float frameStartTime = Time.realtimeSinceStartup * 1000f;
 
         while (tickAccumulator >= 1f)
         {
@@ -222,7 +206,6 @@ public class SimulationEngine : MonoBehaviour
             tickAccumulator -= 1f;
             ticksThisFrame++;
 
-            // Check max ticks
             if (maxTicks > 0 && tickCount >= maxTicks)
             {
                 Debug.Log("Simulation COMPLETED - max ticks reached");
@@ -231,11 +214,9 @@ public class SimulationEngine : MonoBehaviour
                 return;
             }
 
-            // Time budget check - don't freeze the game
             float elapsed = (Time.realtimeSinceStartup * 1000f) - frameStartTime;
             if (elapsed >= maxTickBudgetMs)
             {
-                // We've used our budget. Remaining ticks carry over to next frame.
                 break;
             }
         }
@@ -297,10 +278,6 @@ public class SimulationEngine : MonoBehaviour
     public float GetSpeedMultiplier() => speedMultiplier;
     public int GetTicksLastFrame() => lastFrameTickCount;
 
-    /// <summary>
-    /// Get the current simulation time as a formatted string.
-    /// Based on simMinutesPerTick and total ticks elapsed.
-    /// </summary>
     public float GetSimulatedHours()
     {
         return (tickCount * simMinutesPerTick) / 60f;
@@ -311,10 +288,6 @@ public class SimulationEngine : MonoBehaviour
         return GetSimulatedHours() / 24f;
     }
 
-    /// <summary>
-    /// Get effective ticks per second (actual measured rate).
-    /// Useful for performance monitoring.
-    /// </summary>
     public float GetEffectiveTicksPerSecond()
     {
         if (!isRunning || isPaused) return 0f;
@@ -367,6 +340,21 @@ public class SimulationEngine : MonoBehaviour
 
         CheckPeriodicSpawns();
 
+        // === NEW: Update trade routes for merchants (advance waypoints) ===
+        if (TradeRouteManager.Instance != null)
+        {
+            foreach (var ship in ships)
+            {
+                if (ship == null || ship.Data == null) continue;
+
+                if (ship.Data.type == ShipType.Cargo && 
+                    ship.Data.state == ShipState.Moving)
+                {
+                    TradeRouteManager.Instance.UpdateMerchantRoute(ship);
+                }
+            }
+        }
+
         // Run behavior AI
         foreach (var ship in ships)
         {
@@ -396,6 +384,17 @@ public class SimulationEngine : MonoBehaviour
 
     private void HandleShipState(ShipController ship, int index)
     {
+        // === NEW: Check offscreen despawn for merchants ===
+        if (TradeRouteManager.Instance != null &&
+            TradeRouteManager.Instance.ShouldDespawnOffscreen(ship))
+        {
+            if (ship.Data.type == ShipType.Cargo)
+                merchantsExited++;
+            Destroy(ship.gameObject);
+            ships.RemoveAt(index);
+            return;
+        }
+
         switch (ship.Data.state)
         {
             case ShipState.Exited:

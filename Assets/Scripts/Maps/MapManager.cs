@@ -5,16 +5,7 @@ using TMPro;
 /// <summary>
 /// Map Manager - Handles multiple map regions
 /// 
-/// Manages:
-/// - Switching between maps
-/// - Updating MapColorSampler reference
-/// - Rebuilding pathfinding grid
-/// - Setting correct region for ship identities
-/// 
-/// SETUP:
-/// 1. Add this to a GameObject (e.g., "MapManager")
-/// 2. Assign your map sprites
-/// 3. Connect to a dropdown in your UI
+/// UPDATED: Guards SpawnZoneConfigurator sync when trade routes exist.
 /// </summary>
 public class MapManager : MonoBehaviour
 {
@@ -53,13 +44,11 @@ public class MapManager : MonoBehaviour
 
     void Start()
     {
-        // Setup dropdown if assigned
         if (mapDropdown != null)
         {
             SetupDropdown();
         }
 
-        // Load initial map
         if (mapSprites != null && mapSprites.Length > 0)
         {
             LoadMap(currentMapIndex);
@@ -81,17 +70,11 @@ public class MapManager : MonoBehaviour
         mapDropdown.onValueChanged.AddListener(OnMapSelected);
     }
 
-    /// <summary>
-    /// Called when user selects a map from dropdown
-    /// </summary>
     public void OnMapSelected(int index)
     {
         LoadMap(index);
     }
 
-    /// <summary>
-    /// Load a specific map by index
-    /// </summary>
     public void LoadMap(int index)
     {
         if (mapSprites == null || index < 0 || index >= mapSprites.Length)
@@ -108,7 +91,6 @@ public class MapManager : MonoBehaviour
 
         currentMapIndex = index;
         
-        // Update the map sprite
         if (mapRenderer != null)
         {
             mapRenderer.sprite = mapSprites[index];
@@ -120,20 +102,22 @@ public class MapManager : MonoBehaviour
             return;
         }
 
-        // Update MapColorSampler
         UpdateMapColorSampler();
-
-        // Rebuild pathfinding grid
         RebuildPathfinding();
-
-        // Update ship identity region
         UpdateShipIdentityRegion();
 
-        // Fire event for other systems
+        // Fire event for other systems (MapSpawnPresets listens to this)
         OnMapChanged?.Invoke(currentMapIndex);
 
-        // Sync spawn zone configurator to show new preset positions
-        if (SpawnZoneConfigurator.Instance != null)
+        // === UPDATED: Only sync spawn zone configurator if NO trade routes for this map ===
+        bool tradeRoutesActive = false;
+        if (TradeRouteManager.Instance != null)
+        {
+            TradeRouteManager.Instance.SetMapIndex(currentMapIndex);
+            tradeRoutesActive = TradeRouteManager.Instance.HasRouteData();
+        }
+
+        if (!tradeRoutesActive && SpawnZoneConfigurator.Instance != null)
         {
             SpawnZoneConfigurator.Instance.SyncFromSpawner();
         }
@@ -143,9 +127,7 @@ public class MapManager : MonoBehaviour
     {
         if (MapColorSampler.Instance != null)
         {
-            // Re-initialize to update bounds
             MapColorSampler.Instance.Initialize();
-            // Load the correct mask for this map
             MapColorSampler.Instance.LoadMaskForCurrentMap();
             Debug.Log("MapManager: MapColorSampler updated with new mask");
         }
@@ -162,14 +144,10 @@ public class MapManager : MonoBehaviour
 
     void UpdateShipIdentityRegion()
     {
-        // Update the static region for new ships
         ShipIdentity.CurrentRegion = (ShipIdentity.MapRegion)currentMapIndex;
         Debug.Log($"MapManager: Ship identity region set to {ShipIdentity.CurrentRegion}");
     }
 
-    /// <summary>
-    /// Get the current map name
-    /// </summary>
     public string GetCurrentMapName()
     {
         if (currentMapIndex >= 0 && currentMapIndex < mapNames.Length)
@@ -177,20 +155,13 @@ public class MapManager : MonoBehaviour
         return "Unknown";
     }
 
-    /// <summary>
-    /// Get current map index
-    /// </summary>
     public int GetCurrentMapIndex()
     {
         return currentMapIndex;
     }
 
-    // Event for other systems to listen to
     public System.Action<int> OnMapChanged;
 
-    /// <summary>
-    /// Cycle to next map (useful for testing)
-    /// </summary>
     public void NextMap()
     {
         int next = (currentMapIndex + 1) % mapSprites.Length;
@@ -200,9 +171,6 @@ public class MapManager : MonoBehaviour
             mapDropdown.value = next;
     }
 
-    /// <summary>
-    /// Load map by name
-    /// </summary>
     public void LoadMap(string mapName)
     {
         for (int i = 0; i < mapNames.Length; i++)

@@ -3,15 +3,9 @@ using UnityEngine;
 /// <summary>
 /// Map Spawn Presets - Stores spawn zone positions for each map
 /// 
-/// Each map has different water locations, so spawn zones must change.
-/// When you switch maps, zones automatically reposition.
-/// 
-/// SETUP:
-/// 1. Add this component to your MapManager object
-/// 2. Assign your ShipSpawner
-/// 3. Switch to a map, position zones in ShipSpawner Inspector
-/// 4. Right-click this component → "Save Current as [Map] Preset"
-/// 5. Repeat for each map
+/// UPDATED: Skips applying presets when TradeRouteManager has route data
+/// for the current map. This prevents the old spawn zones from overriding
+/// the trade route system.
 /// </summary>
 public class MapSpawnPresets : MonoBehaviour
 {
@@ -69,17 +63,14 @@ public class MapSpawnPresets : MonoBehaviour
 
     void Start()
     {
-        // Auto-find ShipSpawner if not assigned
         if (shipSpawner == null)
         {
             shipSpawner = FindObjectOfType<ShipSpawner>();
         }
 
-        // Subscribe to map changes
         if (MapManager.Instance != null)
         {
             MapManager.Instance.OnMapChanged += OnMapChanged;
-            // Apply initial
             OnMapChanged(MapManager.Instance.GetCurrentMapIndex());
         }
     }
@@ -94,6 +85,21 @@ public class MapSpawnPresets : MonoBehaviour
 
     void OnMapChanged(int mapIndex)
     {
+        // === NEW: Skip old presets when trade routes exist for this map ===
+        if (TradeRouteManager.Instance != null)
+        {
+            // Tell TradeRouteManager which map we're on
+            TradeRouteManager.Instance.SetMapIndex(mapIndex);
+
+            // If trade routes exist for this map, don't apply old spawn presets
+            if (TradeRouteManager.Instance.HasRouteData())
+            {
+                if (logChanges)
+                    Debug.Log($"MapSpawnPresets: Skipping old presets — trade routes active for map {mapIndex}");
+                return;
+            }
+        }
+
         ApplyPreset(mapIndex);
     }
 
@@ -107,13 +113,13 @@ public class MapSpawnPresets : MonoBehaviour
 
         switch (mapIndex)
         {
-            case 0: // Guinea
+            case 0:
                 ApplyGuineaPreset();
                 break;
-            case 1: // Malacca
+            case 1:
                 ApplyMalaccaPreset();
                 break;
-            case 2: // Aden
+            case 2:
                 ApplyAdenPreset();
                 break;
             default:
@@ -173,25 +179,19 @@ public class MapSpawnPresets : MonoBehaviour
         if (logChanges) Debug.Log("MapSpawnPresets: Applied Aden preset");
     }
 
-    // ============ CONTEXT MENU - Right-click component header ============
-
     [ContextMenu("Save Current as Guinea Preset")]
     public void SaveAsGuinea()
     {
         if (shipSpawner == null) return;
-        
         guineaMerchantCenter = shipSpawner.merchantSpawnCenter;
         guineaMerchantSize = shipSpawner.merchantSpawnSize;
         guineaMerchantDest = shipSpawner.merchantDestination;
-        
         guineaPirateCenter = shipSpawner.pirateSpawnCenter;
         guineaPirateSize = shipSpawner.pirateSpawnSize;
         guineaPiratePatrol = shipSpawner.piratePatrolPoint;
-        
         guineaSecurityCenter = shipSpawner.securitySpawnCenter;
         guineaSecuritySize = shipSpawner.securitySpawnSize;
         guineaSecurityPatrol = shipSpawner.securityPatrolPoint;
-        
         Debug.Log("Saved current zones to Guinea preset!");
     }
 
@@ -199,19 +199,15 @@ public class MapSpawnPresets : MonoBehaviour
     public void SaveAsMalacca()
     {
         if (shipSpawner == null) return;
-        
         malaccaMerchantCenter = shipSpawner.merchantSpawnCenter;
         malaccaMerchantSize = shipSpawner.merchantSpawnSize;
         malaccaMerchantDest = shipSpawner.merchantDestination;
-        
         malaccaPirateCenter = shipSpawner.pirateSpawnCenter;
         malaccaPirateSize = shipSpawner.pirateSpawnSize;
         malaccaPiratePatrol = shipSpawner.piratePatrolPoint;
-        
         malaccaSecurityCenter = shipSpawner.securitySpawnCenter;
         malaccaSecuritySize = shipSpawner.securitySpawnSize;
         malaccaSecurityPatrol = shipSpawner.securityPatrolPoint;
-        
         Debug.Log("Saved current zones to Malacca preset!");
     }
 
@@ -219,19 +215,15 @@ public class MapSpawnPresets : MonoBehaviour
     public void SaveAsAden()
     {
         if (shipSpawner == null) return;
-        
         adenMerchantCenter = shipSpawner.merchantSpawnCenter;
         adenMerchantSize = shipSpawner.merchantSpawnSize;
         adenMerchantDest = shipSpawner.merchantDestination;
-        
         adenPirateCenter = shipSpawner.pirateSpawnCenter;
         adenPirateSize = shipSpawner.pirateSpawnSize;
         adenPiratePatrol = shipSpawner.piratePatrolPoint;
-        
         adenSecurityCenter = shipSpawner.securitySpawnCenter;
         adenSecuritySize = shipSpawner.securitySpawnSize;
         adenSecurityPatrol = shipSpawner.securityPatrolPoint;
-        
         Debug.Log("Saved current zones to Aden preset!");
     }
 }
