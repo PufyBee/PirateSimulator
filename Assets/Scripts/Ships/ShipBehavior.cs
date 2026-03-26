@@ -58,7 +58,7 @@ public class ShipBehavior : MonoBehaviour
     [Tooltip("Radius around ambush point — pirate activates when a merchant enters this radius")]
     public float ambushTriggerRadius = 15f;
     [Tooltip("If true, pirates are invisible while lurking at ambush points")]
-    public bool invisibleWhileLurking = true;
+    public bool invisibleWhileLurking = false;
 
     [Header("=== PATHFINDING THROTTLE ===")]
     [Tooltip("Minimum ticks between SetDestination() calls (A* pathfinding)")]
@@ -295,7 +295,8 @@ public class ShipBehavior : MonoBehaviour
                     hasAmbushPoint = true;
                     ForceSetDestination(currentAmbushPoint);
                     currentState = BehaviorState.Patrolling;
-                    SetPirateVisibility(false);
+                    // Stay visible while traveling to ambush point
+                    // Will go invisible once arrived (handled below)
                 }
             }
 
@@ -1135,52 +1136,28 @@ public class ShipBehavior : MonoBehaviour
         if (target == null) yield break;
 
         SpriteRenderer sr = target.GetComponent<SpriteRenderer>();
-        if (sr == null) yield break;
+        if (sr == null) { Destroy(target.gameObject); yield break; }
 
-        sr.color = Color.white;
-        yield return new WaitForSeconds(0.1f);
+        // Quick flash red then fade out fast
+        sr.color = Color.red;
+        yield return new WaitForSeconds(0.15f);
 
         if (target == null || sr == null) yield break;
-        sr.color = Color.red;
-        yield return new WaitForSeconds(0.1f);
 
-        float fadeTime = 0.3f;
+        // Fast fade out
+        float fadeTime = 0.4f;
         float elapsed = 0f;
-        Color capturedColor = new Color(0.4f, 0.4f, 0.4f, 0.5f);
+        Vector3 originalScale = target.transform.localScale;
 
         while (elapsed < fadeTime)
         {
             if (target == null || sr == null) yield break;
             elapsed += Time.deltaTime;
-            sr.color = Color.Lerp(Color.red, capturedColor, elapsed / fadeTime);
-            yield return null;
-        }
-
-        if (target == null || sr == null) yield break;
-        sr.color = capturedColor;
-
-        if (captureEffectPrefab != null && target != null)
-        {
-            Instantiate(captureEffectPrefab, target.transform.position, Quaternion.identity);
-        }
-
-        yield return new WaitForSeconds(2f);
-
-        if (target == null || sr == null) yield break;
-
-        float fadeOutTime = 1.5f;
-        elapsed = 0f;
-        Vector3 originalScale = target.transform.localScale;
-
-        while (elapsed < fadeOutTime)
-        {
-            if (target == null || sr == null) yield break;
-            elapsed += Time.deltaTime;
-            float t = elapsed / fadeOutTime;
+            float t = elapsed / fadeTime;
             Color c = sr.color;
-            c.a = Mathf.Lerp(0.5f, 0f, t);
+            c.a = Mathf.Lerp(1f, 0f, t);
             sr.color = c;
-            target.transform.localScale = Vector3.Lerp(originalScale, originalScale * 0.5f, t);
+            target.transform.localScale = Vector3.Lerp(originalScale, originalScale * 0.3f, t);
             yield return null;
         }
 
@@ -1193,35 +1170,23 @@ public class ShipBehavior : MonoBehaviour
         if (target == null) yield break;
 
         SpriteRenderer sr = target.GetComponent<SpriteRenderer>();
-        if (sr == null) yield break;
+        if (sr == null) { Destroy(target.gameObject); yield break; }
 
         Vector3 originalScale = target.transform.localScale;
 
-        if (target == null) yield break;
-        target.transform.localScale = originalScale * 1.3f;
-
-        if (target == null || sr == null) yield break;
+        // Quick flash white → orange → shrink and fade
         sr.color = Color.white;
+        target.transform.localScale = originalScale * 1.3f;
         yield return new WaitForSeconds(0.05f);
 
         if (target == null || sr == null) yield break;
-        sr.color = Color.cyan;
+        sr.color = new Color(1f, 0.5f, 0f); // orange
         yield return new WaitForSeconds(0.05f);
 
         if (target == null || sr == null) yield break;
-        sr.color = new Color(1f, 0.5f, 0f);
-        target.transform.localScale = originalScale * 1.5f;
-        yield return new WaitForSeconds(0.05f);
 
-        if (target == null || sr == null) yield break;
-        sr.color = Color.yellow;
-        yield return new WaitForSeconds(0.05f);
-
-        if (target == null || sr == null) yield break;
-        sr.color = Color.red;
-        yield return new WaitForSeconds(0.05f);
-
-        float fadeTime = 0.4f;
+        // Fast shrink and fade
+        float fadeTime = 0.3f;
         float elapsed = 0f;
 
         while (elapsed < fadeTime)
@@ -1229,16 +1194,10 @@ public class ShipBehavior : MonoBehaviour
             if (target == null || sr == null) yield break;
             elapsed += Time.deltaTime;
             float t = elapsed / fadeTime;
-            target.transform.localScale = Vector3.Lerp(originalScale * 1.5f, Vector3.zero, t);
-            target.transform.Rotate(0, 0, 720 * Time.deltaTime);
-            Color c = Color.Lerp(Color.red, new Color(0.2f, 0.2f, 0.2f, 0f), t);
+            target.transform.localScale = Vector3.Lerp(originalScale * 1.3f, Vector3.zero, t);
+            Color c = Color.Lerp(new Color(1f, 0.5f, 0f), new Color(0.2f, 0.2f, 0.2f, 0f), t);
             sr.color = c;
             yield return null;
-        }
-
-        if (explosionPrefab != null && target != null)
-        {
-            Instantiate(explosionPrefab, target.transform.position, Quaternion.identity);
         }
 
         if (target != null)

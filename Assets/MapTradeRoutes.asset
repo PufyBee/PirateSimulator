@@ -20,17 +20,17 @@ MonoBehaviour:
   - baseName: 'Spot 1 '
     position: {x: -243, y: -22}
     ambushPoints: []
-    maxRoamDistance: 50
+    maxRoamDistance: 500
     spawnWeight: 0
   - baseName: Spot 2
     position: {x: -191, y: -45}
     ambushPoints: []
-    maxRoamDistance: 75
+    maxRoamDistance: 500
     spawnWeight: 0
   - baseName: Spot 3
     position: {x: -149, y: -67}
     ambushPoints: []
-    maxRoamDistance: 10
+    maxRoamDistance: 500
     spawnWeight: 1
   navyPatrolZones:
   - zoneName: Follow Merchants

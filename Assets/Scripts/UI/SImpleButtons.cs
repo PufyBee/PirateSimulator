@@ -84,6 +84,11 @@ public class SimpleButtons : MonoBehaviour
     [Header("=== CONDITION INDICATOR (Rqmt25) ===")]
     public TMP_Text conditionBadge;
 
+    [Header("=== WAKE TRAIL TOGGLE ===")]
+    public Button wakeTrailToggleBtn;
+    public TMP_Text wakeTrailButtonText;
+    private bool wakeTrailsEnabled = true;
+
     [Header("=== CONFIRMATION DIALOG ===")]
     public ConfirmationDialog confirmationDialog;
 
@@ -157,6 +162,7 @@ public class SimpleButtons : MonoBehaviour
         }
         if (speedUpBtn) speedUpBtn.onClick.AddListener(OnSpeedUp);
         if (speedDownBtn) speedDownBtn.onClick.AddListener(OnSpeedDown);
+        if (wakeTrailToggleBtn) wakeTrailToggleBtn.onClick.AddListener(OnWakeTrailToggle);
         
         UpdateSpeedDisplay();
 
@@ -200,6 +206,25 @@ public class SimpleButtons : MonoBehaviour
         UpdateTimeDisplay();
         UpdateStatsDisplay();
         UpdateConditionBadge();
+
+        // Continuously enforce wake trail toggle on all ships (catches newly spawned ones)
+        if (!wakeTrailsEnabled)
+        {
+            var allEffects = FindObjectsOfType<ShipVisualEffects>();
+            foreach (var fx in allEffects)
+            {
+                if (fx.enabled)
+                {
+                    fx.enabled = false;
+                    var trails = fx.GetComponentsInChildren<TrailRenderer>();
+                    foreach (var trail in trails)
+                        trail.enabled = false;
+                    var lines = fx.GetComponentsInChildren<LineRenderer>();
+                    foreach (var line in lines)
+                        line.enabled = false;
+                }
+            }
+        }
     }
 
     // ===== LOGARITHMIC SPEED SLIDER =====
@@ -572,6 +597,35 @@ public class SimpleButtons : MonoBehaviour
             else
                 speedValueText.text = $"{currentSpeed:F1}x";
         }
+    }
+
+    // ===== WAKE TRAIL TOGGLE =====
+
+    void OnWakeTrailToggle()
+    {
+        wakeTrailsEnabled = !wakeTrailsEnabled;
+
+        // Toggle all existing ShipVisualEffects components
+        var allEffects = FindObjectsOfType<ShipVisualEffects>();
+        foreach (var fx in allEffects)
+        {
+            fx.enabled = wakeTrailsEnabled;
+            // Also hide existing trail renderers
+            var trails = fx.GetComponentsInChildren<TrailRenderer>();
+            foreach (var trail in trails)
+                trail.enabled = wakeTrailsEnabled;
+            var lines = fx.GetComponentsInChildren<LineRenderer>();
+            foreach (var line in lines)
+                line.enabled = wakeTrailsEnabled;
+        }
+
+        // Update ShipSpawner so new ships respect the setting
+        if (ShipSpawner.Instance != null)
+            ShipSpawner.Instance.enableVisualEffects = wakeTrailsEnabled;
+
+        // Update button text
+        if (wakeTrailButtonText)
+            wakeTrailButtonText.text = wakeTrailsEnabled ? "Trails: ON" : "Trails: OFF";
     }
 
     void UpdateConditionBadge()
