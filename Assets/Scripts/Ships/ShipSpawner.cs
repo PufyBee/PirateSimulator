@@ -1,11 +1,17 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// Ship Spawner with ZONE-BASED spawning
-/// Ships spawn randomly within a rectangular area, not a single point.
+/// Ship Spawner - TRADE ROUTE INTEGRATED
 /// 
-/// Now includes automatic ShipVisualEffects (wakes + radar ping)
+/// WHAT CHANGED:
+/// - SpawnShip() now checks TradeRouteManager for route data
+/// - Merchants: assigned a weighted random trade route (spawn at route start)
+/// - Pirates: assigned to a coastal base (spawn at base, patrol to ambush points)
+/// - Security: assigned to a patrol zone (spawn at first patrol waypoint)
+/// - If no TradeRouteManager or no route data → falls back to OLD zone-based spawning
+/// 
+/// ALL EXISTING INSPECTOR FIELDS ARE PRESERVED for fallback.
 /// </summary>
 public class ShipSpawner : MonoBehaviour
 {
@@ -16,7 +22,7 @@ public class ShipSpawner : MonoBehaviour
     public GameObject pirateShipPrefab;
     public GameObject securityShipPrefab;
 
-    [Header("=== MERCHANT SPAWN ZONE ===")]
+    [Header("=== MERCHANT SPAWN ZONE (Fallback) ===")]
     [Tooltip("Center of the spawn zone")]
     public Vector2 merchantSpawnCenter = new Vector2(-8, 0);
     [Tooltip("Size of spawn zone (ships spawn randomly within)")]
@@ -24,13 +30,13 @@ public class ShipSpawner : MonoBehaviour
     public Vector2 merchantDestination = new Vector2(8, 0);
     public float merchantSpeed = 0.05f;
 
-    [Header("=== PIRATE SPAWN ZONE ===")]
+    [Header("=== PIRATE SPAWN ZONE (Fallback) ===")]
     public Vector2 pirateSpawnCenter = new Vector2(0, 0);
     public Vector2 pirateSpawnSize = new Vector2(4, 4);
     public Vector2 piratePatrolPoint = new Vector2(0, -1);
     public float pirateSpeed = 0.07f;
 
-    [Header("=== SECURITY SPAWN ZONE ===")]
+    [Header("=== SECURITY SPAWN ZONE (Fallback) ===")]
     public Vector2 securitySpawnCenter = new Vector2(6, 0);
     public Vector2 securitySpawnSize = new Vector2(2, 4);
     public Vector2 securityPatrolPoint = new Vector2(-2, -1);
@@ -53,7 +59,9 @@ public class ShipSpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// Spawn a ship of the specified type at a random position within its zone.
+    /// Spawn a ship of the specified type.
+    /// If TradeRouteManager has data → uses trade routes/bases/patrols.
+    /// Otherwise → falls back to old zone-based spawning.
     /// </summary>
     public ShipController SpawnShip(ShipType type, System.Random rng = null)
     {
@@ -66,10 +74,27 @@ public class ShipSpawner : MonoBehaviour
             return null;
         }
 
-        // Get random position within spawn zone
-        Vector2 spawnPoint = GetRandomSpawnPoint(type, rng);
-        Vector2 destination = GetDestination(type);
+        // Determine spawn position and speed
+        // If trade routes are active, use a dummy position — TradeRouteManager will override it
+        Vector2 spawnPoint;
         float speed = GetSpeed(type);
+
+        bool hasTradeRoutes = TradeRouteManager.Instance != null && (
+            (type == ShipType.Cargo && TradeRouteManager.Instance.HasRouteData()) ||
+            (type == ShipType.Pirate && TradeRouteManager.Instance.HasPirateBaseData()) ||
+            (type == ShipType.Security && TradeRouteManager.Instance.HasNavyPatrolData())
+        );
+
+        if (hasTradeRoutes)
+        {
+            // Use origin as placeholder — TradeRouteManager will set the real position
+            spawnPoint = Vector2.zero;
+        }
+        else
+        {
+            // No trade routes for this type — use old zone-based spawn
+            spawnPoint = GetRandomSpawnPoint(type, rng);
+        }
 
         // Create the ship
         GameObject shipObj = Instantiate(prefab);
@@ -95,9 +120,51 @@ public class ShipSpawner : MonoBehaviour
 
         shipIdCounter++;
 
-        // Initialize and set destination
+        // Initialize the ship
         controller.Initialize(data);
-        controller.SetDestination(destination);
+
+        // === TRADE ROUTE ASSIGNMENT ===
+        bool routeAssigned = false;
+
+        if (TradeRouteManager.Instance != null)
+        {
+            switch (type)
+            {
+                case ShipType.Cargo:
+                    if (TradeRouteManager.Instance.HasRouteData())
+                    {
+                        var assignment = TradeRouteManager.Instance.AssignMerchantRoute(controller, rng);
+                        if (assignment != null)
+                            routeAssigned = true;
+                    }
+                    break;
+
+                case ShipType.Pirate:
+                    if (TradeRouteManager.Instance.HasPirateBaseData())
+                    {
+                        Vector2 basePos = TradeRouteManager.Instance.AssignPirateBase(controller, rng);
+                        if (basePos != Vector2.zero)
+                            routeAssigned = true;
+                    }
+                    break;
+
+                case ShipType.Security:
+                    if (TradeRouteManager.Instance.HasNavyPatrolData())
+                    {
+                        Vector2 patrolStart = TradeRouteManager.Instance.AssignNavyPatrol(controller, rng);
+                        if (patrolStart != Vector2.zero)
+                            routeAssigned = true;
+                    }
+                    break;
+            }
+        }
+
+        // === FALLBACK: Old zone-based spawning if no route was assigned ===
+        if (!routeAssigned)
+        {
+            Vector2 destination = GetDestination(type);
+            controller.SetDestination(destination);
+        }
 
         // Add visual effects (wake trail, radar ping)
         if (enableVisualEffects && shipObj.GetComponent<ShipVisualEffects>() == null)
@@ -107,8 +174,6 @@ public class ShipSpawner : MonoBehaviour
 
         // Track this ship
         activeShips.Add(controller);
-
-        Debug.Log($"Spawned {type} at {spawnPoint}");
 
         return controller;
     }
@@ -142,35 +207,30 @@ public class ShipSpawner : MonoBehaviour
                 break;
         }
 
-        // Try to find a valid water spawn point
         int maxAttempts = 20;
         for (int i = 0; i < maxAttempts; i++)
         {
-            // Random point within rectangle
             float x = center.x + (float)(rng.NextDouble() - 0.5) * size.x;
             float y = center.y + (float)(rng.NextDouble() - 0.5) * size.y;
             Vector2 point = new Vector2(x, y);
 
-            // Check if it's in water
             if (MapColorSampler.Instance == null || MapColorSampler.Instance.IsWater(point))
             {
                 return point;
             }
         }
 
-        // Fallback: couldn't find water in zone, try to find nearest water to center
         Debug.LogWarning($"ShipSpawner: Could not find water spawn point for {type} after {maxAttempts} attempts. Using center.");
-        
+
         if (MapColorSampler.Instance != null && !MapColorSampler.Instance.IsWater(center))
         {
-            // Try to nudge toward water
             Vector2[] offsets = {
                 new Vector2(1, 0), new Vector2(-1, 0),
                 new Vector2(0, 1), new Vector2(0, -1),
                 new Vector2(1, 1), new Vector2(-1, -1),
                 new Vector2(1, -1), new Vector2(-1, 1)
             };
-            
+
             for (float dist = 0.5f; dist < 5f; dist += 0.5f)
             {
                 foreach (var offset in offsets)
@@ -275,6 +335,10 @@ public class ShipSpawner : MonoBehaviour
     private void OnDrawGizmos()
     {
         if (!showSpawnZones) return;
+
+        // Don't show old spawn zones if trade routes are configured
+        if (TradeRouteManager.Instance != null && TradeRouteManager.Instance.HasRouteData())
+            return;
 
         // Merchant zone - Green
         Gizmos.color = new Color(0, 1, 0, 0.3f);

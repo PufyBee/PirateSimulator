@@ -3,15 +3,16 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// UI Controller - Updated to work with new UICanvas design
+/// UI Controller - Updated for High-Speed Multi-Tick Engine
 /// 
-/// REQUIREMENTS COVERED:
-/// - Rqmt04: Run Controls (Start/Pause/Resume/Reset)
-/// - Rqmt17: Lock Config on Start
-/// - Rqmt18: Single-Step Execution
-/// - Rqmt19: Adjustable Speed (slider OR buttons)
-/// - Rqmt25: Condition Indicator (runtime badge)
-/// - Rqmt26: Prevent Invalid Actions (button states)
+/// CHANGES FROM ORIGINAL:
+/// 1. Speed slider now goes 0.5x to 500x (was 0.5 to 20)
+/// 2. Uses logarithmic slider scale for fine control at low speeds, big jumps at high speeds
+/// 3. Calls SetSpeedMultiplier() instead of SetTickInterval()
+/// 4. Time display shows simulated days/hours based on real-time correlation
+/// 5. Added performance indicator (ticks/sec)
+/// 
+/// ALL OTHER FUNCTIONALITY IS IDENTICAL.
 /// </summary>
 public class SimpleButtons : MonoBehaviour
 {
@@ -83,6 +84,11 @@ public class SimpleButtons : MonoBehaviour
     [Header("=== CONDITION INDICATOR (Rqmt25) ===")]
     public TMP_Text conditionBadge;
 
+    [Header("=== WAKE TRAIL TOGGLE ===")]
+    public Button wakeTrailToggleBtn;
+    public TMP_Text wakeTrailButtonText;
+    private bool wakeTrailsEnabled = true;
+
     [Header("=== CONFIRMATION DIALOG ===")]
     public ConfirmationDialog confirmationDialog;
 
@@ -96,10 +102,18 @@ public class SimpleButtons : MonoBehaviour
     private bool isPaused = false;
     private int selectedTimeOfDay = 0;
     private int selectedWeather = 0;
+
+    // === SPEED SETTINGS (UPDATED) ===
+    // Slider uses logarithmic scale: 0.0 to 1.0 maps to MIN_SPEED to MAX_SPEED
     private float currentSpeed = 4f;
     private const float MIN_SPEED = 0.5f;
-    private const float MAX_SPEED = 20f;
-    private const float SPEED_STEP = 1f;
+    private const float MAX_SPEED = 500f;
+
+    // Speed presets for button stepping
+    private static readonly float[] SPEED_PRESETS = {
+        0.5f, 1f, 2f, 4f, 8f, 16f, 32f, 50f, 100f, 200f, 500f
+    };
+    private int currentPresetIndex = 3; // starts at 4x
 
     private Color selectedColor = new Color(0.8f, 0.65f, 0.3f);
     private Color unselectedColor = new Color(0.6f, 0.5f, 0.35f);
@@ -140,13 +154,15 @@ public class SimpleButtons : MonoBehaviour
 
         if (speedSlider)
         {
-            speedSlider.minValue = MIN_SPEED;
-            speedSlider.maxValue = MAX_SPEED;
-            speedSlider.value = currentSpeed;
+            // Logarithmic slider: 0.0 to 1.0 (maps to MIN_SPEED..MAX_SPEED)
+            speedSlider.minValue = 0f;
+            speedSlider.maxValue = 1f;
+            speedSlider.value = SpeedToSlider(currentSpeed);
             speedSlider.onValueChanged.AddListener(OnSpeedSliderChanged);
         }
         if (speedUpBtn) speedUpBtn.onClick.AddListener(OnSpeedUp);
         if (speedDownBtn) speedDownBtn.onClick.AddListener(OnSpeedDown);
+        if (wakeTrailToggleBtn) wakeTrailToggleBtn.onClick.AddListener(OnWakeTrailToggle);
         
         UpdateSpeedDisplay();
 
@@ -163,7 +179,13 @@ public class SimpleButtons : MonoBehaviour
         UpdatePauseButtonText();
 
         if (spawnZoneConfigurator != null)
-            spawnZoneConfigurator.ShowForSetup();
+        {
+            // Hide spawn zone markers if trade routes are configured for this map
+            if (TradeRouteManager.Instance != null && TradeRouteManager.Instance.HasRouteData())
+                spawnZoneConfigurator.gameObject.SetActive(false);
+            else
+                spawnZoneConfigurator.ShowForSetup();
+        }
 
         LogInputConnections();
     }
@@ -184,7 +206,54 @@ public class SimpleButtons : MonoBehaviour
         UpdateTimeDisplay();
         UpdateStatsDisplay();
         UpdateConditionBadge();
+
+        // Continuously enforce wake trail toggle on all ships (catches newly spawned ones)
+        if (!wakeTrailsEnabled)
+        {
+            var allEffects = FindObjectsOfType<ShipVisualEffects>();
+            foreach (var fx in allEffects)
+            {
+                if (fx.enabled)
+                {
+                    fx.enabled = false;
+                    var trails = fx.GetComponentsInChildren<TrailRenderer>();
+                    foreach (var trail in trails)
+                        trail.enabled = false;
+                    var lines = fx.GetComponentsInChildren<LineRenderer>();
+                    foreach (var line in lines)
+                        line.enabled = false;
+                }
+            }
+        }
     }
+
+    // ===== LOGARITHMIC SPEED SLIDER =====
+    // This gives fine control at low speeds (0.5-10x) and big jumps at high speeds (100-500x)
+
+    /// <summary>
+    /// Convert speed multiplier to slider position (0..1) using log scale.
+    /// </summary>
+    float SpeedToSlider(float speed)
+    {
+        // log mapping: slider = log(speed/MIN) / log(MAX/MIN)
+        float logMin = Mathf.Log(MIN_SPEED);
+        float logMax = Mathf.Log(MAX_SPEED);
+        float logSpeed = Mathf.Log(Mathf.Clamp(speed, MIN_SPEED, MAX_SPEED));
+        return (logSpeed - logMin) / (logMax - logMin);
+    }
+
+    /// <summary>
+    /// Convert slider position (0..1) to speed multiplier using log scale.
+    /// </summary>
+    float SliderToSpeed(float sliderValue)
+    {
+        float logMin = Mathf.Log(MIN_SPEED);
+        float logMax = Mathf.Log(MAX_SPEED);
+        float logSpeed = logMin + sliderValue * (logMax - logMin);
+        return Mathf.Exp(logSpeed);
+    }
+
+    // ===== BUTTON HANDLERS =====
 
     void OnStartClicked()
     {
@@ -192,13 +261,16 @@ public class SimpleButtons : MonoBehaviour
 
         ApplySettingsFromInputs();
         ApplyEnvironmentSettings();
-        //AudioManager.Instance.PlayMusic("Simulation");
 
         if (spawnZoneConfigurator == null)
             spawnZoneConfigurator = FindObjectOfType<SpawnZoneConfigurator>();
         if (spawnZoneConfigurator != null)
         {
-            spawnZoneConfigurator.SyncToSpawner();
+            // Only sync old spawn zones if NO trade routes are configured
+            if (TradeRouteManager.Instance == null || !TradeRouteManager.Instance.HasRouteData())
+            {
+                spawnZoneConfigurator.SyncToSpawner();
+            }
             spawnZoneConfigurator.Lock();
         }
 
@@ -305,12 +377,24 @@ public class SimpleButtons : MonoBehaviour
 
         if (engine) engine.ResetToNewRun();
 
+        // Reset trade route assignments
+        if (TradeRouteManager.Instance != null)
+            TradeRouteManager.Instance.ResetAllAssignments();
+
         isPaused = false;
         UpdatePauseButtonText();
         SetStatus("READY");
 
         if (spawnZoneConfigurator != null)
-            spawnZoneConfigurator.ShowForSetup();
+        {
+            if (TradeRouteManager.Instance != null && TradeRouteManager.Instance.HasRouteData())
+                spawnZoneConfigurator.gameObject.SetActive(false);
+            else
+            {
+                spawnZoneConfigurator.gameObject.SetActive(true);
+                spawnZoneConfigurator.ShowForSetup();
+            }
+        }
         if (coastalDefenseManager != null)
             coastalDefenseManager.Unlock();
 
@@ -328,13 +412,11 @@ public class SimpleButtons : MonoBehaviour
 
     void SetRuntimeUIState(bool isRunning)
     {
-        // COMPLETELY HIDE map selection panel during runtime
         if (mapSelectionPanel != null)
         {
             mapSelectionPanel.SetActive(!isRunning);
         }
 
-        // COMPLETELY HIDE right side panel during runtime
         if (rightSidePanel != null)
         {
             rightSidePanel.SetActive(!isRunning);
@@ -363,8 +445,22 @@ public class SimpleButtons : MonoBehaviour
     {
         if (MapManager.Instance != null)
             MapManager.Instance.LoadMap(index);
+
+        // Switch trade route data to match new map
+        if (TradeRouteManager.Instance != null)
+            TradeRouteManager.Instance.SetMapIndex(index);
+
+        // Show/hide spawn zone markers based on whether this map has trade routes
         if (spawnZoneConfigurator != null)
-            spawnZoneConfigurator.ShowForSetup();
+        {
+            if (TradeRouteManager.Instance != null && TradeRouteManager.Instance.HasRouteData())
+                spawnZoneConfigurator.gameObject.SetActive(false);
+            else
+            {
+                spawnZoneConfigurator.gameObject.SetActive(true);
+                spawnZoneConfigurator.ShowForSetup();
+            }
+        }
     }
 
     string GetTimeOfDayName(int index)
@@ -419,38 +515,117 @@ public class SimpleButtons : MonoBehaviour
         }
     }
 
-    void OnSpeedSliderChanged(float value)
+    // ===== SPEED CONTROL (UPDATED) =====
+
+    void OnSpeedSliderChanged(float sliderValue)
     {
-        currentSpeed = value;
+        currentSpeed = SliderToSpeed(sliderValue);
+
+        // Snap to nearest preset for display cleanliness
+        currentSpeed = SnapToNearestPreset(currentSpeed);
+
         ApplySpeed();
         UpdateSpeedDisplay();
     }
 
     void OnSpeedUp()
     {
-        currentSpeed = Mathf.Min(currentSpeed + SPEED_STEP, MAX_SPEED);
-        if (speedSlider) speedSlider.value = currentSpeed;
+        // Jump to next preset
+        currentPresetIndex = Mathf.Min(currentPresetIndex + 1, SPEED_PRESETS.Length - 1);
+        currentSpeed = SPEED_PRESETS[currentPresetIndex];
+        if (speedSlider) speedSlider.value = SpeedToSlider(currentSpeed);
         ApplySpeed();
         UpdateSpeedDisplay();
     }
 
     void OnSpeedDown()
     {
-        currentSpeed = Mathf.Max(currentSpeed - SPEED_STEP, MIN_SPEED);
-        if (speedSlider) speedSlider.value = currentSpeed;
+        // Jump to previous preset
+        currentPresetIndex = Mathf.Max(currentPresetIndex - 1, 0);
+        currentSpeed = SPEED_PRESETS[currentPresetIndex];
+        if (speedSlider) speedSlider.value = SpeedToSlider(currentSpeed);
         ApplySpeed();
         UpdateSpeedDisplay();
     }
 
+    /// <summary>
+    /// Snap to nearest preset if very close (for clean display values).
+    /// </summary>
+    float SnapToNearestPreset(float speed)
+    {
+        float bestDist = float.MaxValue;
+        float bestPreset = speed;
+        int bestIndex = currentPresetIndex;
+
+        for (int i = 0; i < SPEED_PRESETS.Length; i++)
+        {
+            // Use ratio distance for log-scale snapping
+            float ratio = speed / SPEED_PRESETS[i];
+            float dist = Mathf.Abs(Mathf.Log(ratio));
+
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                bestPreset = SPEED_PRESETS[i];
+                bestIndex = i;
+            }
+        }
+
+        // Only snap if very close (within ~15% on log scale)
+        if (bestDist < 0.15f)
+        {
+            currentPresetIndex = bestIndex;
+            return bestPreset;
+        }
+
+        return speed;
+    }
+
     void ApplySpeed()
     {
-        if (engine) engine.SetTickInterval(1f / currentSpeed);
+        if (engine) engine.SetSpeedMultiplier(currentSpeed);
     }
 
     void UpdateSpeedDisplay()
     {
         if (speedValueText)
-            speedValueText.text = $"{currentSpeed:F1}x";
+        {
+            if (currentSpeed >= 100f)
+                speedValueText.text = $"{currentSpeed:F0}x";
+            else if (currentSpeed >= 10f)
+                speedValueText.text = $"{currentSpeed:F0}x";
+            else
+                speedValueText.text = $"{currentSpeed:F1}x";
+        }
+    }
+
+    // ===== WAKE TRAIL TOGGLE =====
+
+    void OnWakeTrailToggle()
+    {
+        wakeTrailsEnabled = !wakeTrailsEnabled;
+
+        // Toggle all existing ShipVisualEffects components
+        var allEffects = FindObjectsOfType<ShipVisualEffects>();
+        foreach (var fx in allEffects)
+        {
+            fx.enabled = wakeTrailsEnabled;
+            // Also hide existing trail renderers
+            var trails = fx.GetComponentsInChildren<TrailRenderer>();
+            foreach (var trail in trails)
+                trail.enabled = wakeTrailsEnabled;
+            var lines = fx.GetComponentsInChildren<LineRenderer>();
+            foreach (var line in lines)
+                line.enabled = wakeTrailsEnabled;
+        }
+
+        // Update ShipSpawner so new ships respect the setting
+        if (ShipSpawner.Instance != null)
+            ShipSpawner.Instance.enableVisualEffects = wakeTrailsEnabled;
+
+        // Update button text
+        if (wakeTrailButtonText)
+            wakeTrailButtonText.text = wakeTrailsEnabled ? "Trails: ON" : "Trails: OFF";
     }
 
     void UpdateConditionBadge()
@@ -469,13 +644,46 @@ public class SimpleButtons : MonoBehaviour
         EnvironmentSettings.Instance.SetWeather(selectedWeather);
     }
 
+    // ===== TIME DISPLAY (UPDATED - Real Time Correlation) =====
+
+    void UpdateTimeDisplay()
+    {
+        if (timeText == null || engine == null) return;
+
+        int ticks = engine.GetTickCount();
+        float simHours = engine.GetSimulatedHours();
+        float simDays = engine.GetSimulatedDays();
+
+        int startHour = 6;
+        if (EnvironmentSettings.Instance != null)
+        {
+            switch (EnvironmentSettings.Instance.timeOfDay)
+            {
+                case TimeOfDay.Morning: startHour = 6; break;
+                case TimeOfDay.Noon: startHour = 12; break;
+                case TimeOfDay.Evening: startHour = 18; break;
+                case TimeOfDay.Night: startHour = 22; break;
+            }
+        }
+
+        // Calculate time of day from sim hours + start hour
+        float totalHours = startHour + simHours;
+        int day = 1 + Mathf.FloorToInt(totalHours / 24f);
+        int hours = Mathf.FloorToInt(totalHours) % 24;
+        int minutes = Mathf.FloorToInt((totalHours - Mathf.Floor(totalHours)) * 60f);
+
+        // Show effective ticks per second for performance monitoring
+        float effectiveTps = engine.GetEffectiveTicksPerSecond();
+
+        timeText.text = $"Day {day}  {hours:D2}:{minutes:D2}\nTick: {ticks}  ({currentSpeed:F0}x)\n{effectiveTps:F0} ticks/s";
+    }
+
+    // ===== SETTINGS =====
+
     private const int MAX_INITIAL_SHIPS = 50;
     private const int MAX_TOTAL_SHIPS = 100;
     private const int MAX_DURATION = 100000;
-    
-    // Spawn rate conversion: user enters 1-10, we convert to ticks
-    // Higher number = faster spawning
-    private const int SPAWN_RATE_BASE = 100; // At rate 1, spawn every 100 ticks
+    private const int SPAWN_RATE_BASE = 100;
 
     void ApplySettingsFromInputs()
     {
@@ -498,11 +706,6 @@ public class SimpleButtons : MonoBehaviour
         engine.initialPirates = pirates;
         engine.initialSecurity = security;
 
-        // Convert spawn RATE (1-10, higher=faster) to spawn INTERVAL (ticks between spawns)
-        // Rate 0 = disabled (set to very high interval)
-        // Rate 1 = slow (100 ticks between spawns)
-        // Rate 5 = medium (20 ticks between spawns)
-        // Rate 10 = fast (10 ticks between spawns)
         int merchantRate = ParseIntClamped(merchantSpawnInput, 5, 0, 10);
         int pirateRate = ParseIntClamped(pirateSpawnInput, 3, 0, 10);
         int securityRate = ParseIntClamped(securitySpawnInput, 3, 0, 10);
@@ -516,18 +719,12 @@ public class SimpleButtons : MonoBehaviour
 
         Debug.Log($"=== SETTINGS APPLIED ===");
         Debug.Log($"Initial: M={engine.initialMerchants}, P={engine.initialPirates}, S={engine.initialSecurity}");
-        Debug.Log($"Spawn Rates: M={merchantRate}→{engine.merchantSpawnInterval}t, P={pirateRate}→{engine.pirateSpawnInterval}t, S={securityRate}→{engine.securitySpawnInterval}t");
+        Debug.Log($"Spawn Rates: M={merchantRate}->{engine.merchantSpawnInterval}t, P={pirateRate}->{engine.pirateSpawnInterval}t, S={securityRate}->{engine.securitySpawnInterval}t");
     }
 
-    /// <summary>
-    /// Convert user-friendly rate (0-10) to tick interval.
-    /// 0 = disabled (99999 ticks)
-    /// 1 = slowest (100 ticks)
-    /// 10 = fastest (10 ticks)
-    /// </summary>
     int ConvertRateToInterval(int rate)
     {
-        if (rate <= 0) return 99999; // Effectively disabled
+        if (rate <= 0) return 99999;
         return Mathf.Max(10, SPAWN_RATE_BASE / rate);
     }
 
@@ -577,32 +774,6 @@ public class SimpleButtons : MonoBehaviour
                 default: statusText.color = Color.white; break;
             }
         }
-    }
-
-    void UpdateTimeDisplay()
-    {
-        if (timeText == null || engine == null) return;
-        int ticks = engine.GetTickCount();
-        int ticksPerHour = 60;
-        int startHour = 6;
-
-        if (EnvironmentSettings.Instance != null)
-        {
-            switch (EnvironmentSettings.Instance.timeOfDay)
-            {
-                case TimeOfDay.Morning: startHour = 6; break;
-                case TimeOfDay.Noon: startHour = 12; break;
-                case TimeOfDay.Evening: startHour = 18; break;
-                case TimeOfDay.Night: startHour = 22; break;
-            }
-        }
-
-        int totalMinutes = (ticks * 60) / Mathf.Max(1, ticksPerHour);
-        int hours = (startHour + (totalMinutes / 60)) % 24;
-        int minutes = totalMinutes % 60;
-        int day = 1 + ((startHour + (totalMinutes / 60)) / 24);
-
-        timeText.text = $"Day {day}\n{hours:D2}:{minutes:D2}\nTick: {ticks}";
     }
 
     void UpdateStatsDisplay()

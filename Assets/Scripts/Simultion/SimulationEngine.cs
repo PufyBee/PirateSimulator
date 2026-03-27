@@ -1,24 +1,35 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// SIMULATION ENGINE - With Environment Effects Support
+/// SIMULATION ENGINE - High-Performance Multi-Tick + Trade Route Integration
 /// 
-/// Applies Time of Day and Weather multipliers to:
-/// - Ship spawn rates
-/// - Ship speeds (via ShipSpawner)
-/// - Detection ranges (via ShipBehavior)
-/// 
-/// Also resets shared AI data (hotspots, distress calls) on reset.
+/// TRADE ROUTE CHANGES (on top of the multi-tick system):
+/// 1. DoOneTick() now updates merchant trade routes (advances waypoints)
+/// 2. HandleShipState() checks offscreen despawn via TradeRouteManager
+/// 3. ResetToNewRun() clears TradeRouteManager assignments
+/// 4. All changes are guarded by null checks — works fine without TradeRouteManager
 /// </summary>
 public class SimulationEngine : MonoBehaviour
 {
     [Header("=== REFERENCES ===")]
     public ShipSpawner shipSpawner;
 
+    [Header("=== TIME SCALE ===")]
+    [Tooltip("Simulated minutes per tick. 15 = each tick is 15 minutes of real time.")]
+    public float simMinutesPerTick = 15f;
+
+    [Tooltip("Target ticks per second at 1x speed")]
+    public float baseTicksPerSecond = 4f;
+
+    [Tooltip("Current speed multiplier (1x, 10x, 200x, etc.)")]
+    public float speedMultiplier = 1f;
+
+    [Tooltip("Max milliseconds to spend on ticks per frame (prevents freezing)")]
+    public float maxTickBudgetMs = 12f;
+
     [Header("=== RUN SETTINGS ===")]
-    public float tickInterval = 0.25f;
     public int maxTicks = 0;
     public int runSeed = 12345;
 
@@ -42,12 +53,14 @@ public class SimulationEngine : MonoBehaviour
 
     // Runtime state
     private List<ShipController> ships = new List<ShipController>();
-    private Coroutine tickLoop;
     private System.Random rng;
 
     private bool isRunning = false;
     private bool isPaused = false;
     private int tickCount = 0;
+
+    // Multi-tick accumulator
+    private float tickAccumulator = 0f;
 
     // Spawn timers
     private int ticksSinceLastMerchant = 0;
@@ -60,6 +73,10 @@ public class SimulationEngine : MonoBehaviour
     private int piratesDefeated = 0;
     private HashSet<string> countedShipIds = new HashSet<string>();
 
+    // Performance monitoring
+    private int ticksThisFrame = 0;
+    private int lastFrameTickCount = 0;
+
     // ===== PUBLIC CONTROL METHODS =====
 
     public void StartRun()
@@ -69,8 +86,6 @@ public class SimulationEngine : MonoBehaviour
         if (rng == null)
         {
             rng = new System.Random(runSeed);
-            
-            // Apply environment multipliers at start of run
             ApplyEnvironmentMultipliers();
         }
 
@@ -79,20 +94,15 @@ public class SimulationEngine : MonoBehaviour
 
         isRunning = true;
         isPaused = false;
+        tickAccumulator = 0f;
 
-        if (tickLoop == null)
-            tickLoop = StartCoroutine(TickLoop());
-
-        Debug.Log("Simulation STARTED");
+        Debug.Log($"Simulation STARTED (speed: {speedMultiplier}x, {simMinutesPerTick} min/tick)");
     }
 
     public void PauseRun()
     {
         if (!isRunning) return;
-        
         isPaused = true;
-        StopTickLoop();
-        
         Debug.Log("Simulation PAUSED");
     }
 
@@ -113,22 +123,19 @@ public class SimulationEngine : MonoBehaviour
 
     public void EndRun()
     {
-        StopTickLoop();
         isRunning = false;
         isPaused = false;
-        
         Debug.Log("Simulation ENDED");
         PrintFinalStats();
     }
 
     public void ResetToNewRun()
     {
-        StopTickLoop();
-        
         isRunning = false;
         isPaused = false;
         tickCount = 0;
         rng = null;
+        tickAccumulator = 0f;
 
         ticksSinceLastMerchant = 0;
         ticksSinceLastPirate = 0;
@@ -149,38 +156,84 @@ public class SimulationEngine : MonoBehaviour
         if (shipSpawner != null)
             shipSpawner.ClearAllShips();
 
-        // Reset shared AI data (hotspots, distress calls)
         ShipBehavior.ResetSharedData();
-
-        // Reset coastal defenses
         CoastalDefense.ResetAllBatteries();
+
+        // === NEW: Reset trade route assignments ===
+        if (TradeRouteManager.Instance != null)
+            TradeRouteManager.Instance.ResetAllAssignments();
 
         Debug.Log("Simulation RESET");
     }
 
+    /// <summary>
+    /// Set speed multiplier directly.
+    /// </summary>
+    public void SetSpeedMultiplier(float multiplier)
+    {
+        speedMultiplier = Mathf.Max(0.1f, multiplier);
+    }
+
+    /// <summary>
+    /// LEGACY COMPATIBILITY: SetTickInterval still works.
+    /// </summary>
     public void SetTickInterval(float seconds)
     {
-        tickInterval = Mathf.Max(0.01f, seconds);
-        
-        if (isRunning && !isPaused)
+        float ticksPerSec = 1f / Mathf.Max(0.001f, seconds);
+        speedMultiplier = ticksPerSec / baseTicksPerSecond;
+        speedMultiplier = Mathf.Max(0.1f, speedMultiplier);
+    }
+
+    // ===== UPDATE-BASED TICK LOOP =====
+
+    private void Update()
+    {
+        if (!isRunning || isPaused) return;
+
+        float targetTicksPerSecond = baseTicksPerSecond * speedMultiplier;
+        tickAccumulator += targetTicksPerSecond * Time.deltaTime;
+
+        float maxTicksPerFrame = targetTicksPerSecond / 30f;
+        maxTicksPerFrame = Mathf.Max(maxTicksPerFrame, 1f);
+        tickAccumulator = Mathf.Min(tickAccumulator, maxTicksPerFrame * 2f);
+
+        ticksThisFrame = 0;
+        float frameStartTime = Time.realtimeSinceStartup * 1000f;
+
+        while (tickAccumulator >= 1f)
         {
-            StopTickLoop();
-            tickLoop = StartCoroutine(TickLoop());
+            DoOneTick();
+            tickAccumulator -= 1f;
+            ticksThisFrame++;
+
+            if (maxTicks > 0 && tickCount >= maxTicks)
+            {
+                Debug.Log("Simulation COMPLETED - max ticks reached");
+                isRunning = false;
+                PrintFinalStats();
+                return;
+            }
+
+            float elapsed = (Time.realtimeSinceStartup * 1000f) - frameStartTime;
+            if (elapsed >= maxTickBudgetMs)
+            {
+                break;
+            }
         }
+
+        lastFrameTickCount = ticksThisFrame;
     }
 
     // ===== ENVIRONMENT MULTIPLIERS =====
 
     private void ApplyEnvironmentMultipliers()
     {
-        // Get multipliers from EnvironmentSettings (if it exists)
         float merchantMult = 1f;
         float pirateMult = 1f;
         float securityMult = 1f;
 
         if (EnvironmentSettings.Instance != null)
         {
-            // Recalculate multipliers based on current settings
             EnvironmentSettings.Instance.CalculateMultipliers();
 
             merchantMult = EnvironmentSettings.Instance.MerchantSpawnMultiplier;
@@ -190,23 +243,20 @@ public class SimulationEngine : MonoBehaviour
             Debug.Log($"Environment multipliers applied - Merchant: {merchantMult:F2}, Pirate: {pirateMult:F2}, Security: {securityMult:F2}");
         }
 
-        // Apply to spawn intervals (higher multiplier = more spawns = shorter interval)
-        // Avoid division by zero
-        adjustedMerchantInterval = merchantSpawnInterval > 0 
-            ? Mathf.Max(1, Mathf.RoundToInt(merchantSpawnInterval / merchantMult)) 
+        adjustedMerchantInterval = merchantSpawnInterval > 0
+            ? Mathf.Max(1, Mathf.RoundToInt(merchantSpawnInterval / merchantMult))
             : 0;
-        
-        adjustedPirateInterval = pirateSpawnInterval > 0 
-            ? Mathf.Max(1, Mathf.RoundToInt(pirateSpawnInterval / pirateMult)) 
+
+        adjustedPirateInterval = pirateSpawnInterval > 0
+            ? Mathf.Max(1, Mathf.RoundToInt(pirateSpawnInterval / pirateMult))
             : 0;
-        
-        adjustedSecurityInterval = securitySpawnInterval > 0 
-            ? Mathf.Max(1, Mathf.RoundToInt(securitySpawnInterval / securityMult)) 
+
+        adjustedSecurityInterval = securitySpawnInterval > 0
+            ? Mathf.Max(1, Mathf.RoundToInt(securitySpawnInterval / securityMult))
             : 0;
 
         Debug.Log($"Adjusted spawn intervals - Merchant: {adjustedMerchantInterval}, Pirate: {adjustedPirateInterval}, Security: {adjustedSecurityInterval}");
 
-        // Apply speed multiplier to ShipSpawner
         if (shipSpawner != null && EnvironmentSettings.Instance != null)
         {
             float speedMult = EnvironmentSettings.Instance.SpeedMultiplier;
@@ -225,6 +275,24 @@ public class SimulationEngine : MonoBehaviour
     public int GetMerchantsCaptured() => merchantsCaptured;
     public int GetPiratesDefeated() => piratesDefeated;
     public int GetActiveShipCount() => ships.Count;
+    public float GetSpeedMultiplier() => speedMultiplier;
+    public int GetTicksLastFrame() => lastFrameTickCount;
+
+    public float GetSimulatedHours()
+    {
+        return (tickCount * simMinutesPerTick) / 60f;
+    }
+
+    public float GetSimulatedDays()
+    {
+        return GetSimulatedHours() / 24f;
+    }
+
+    public float GetEffectiveTicksPerSecond()
+    {
+        if (!isRunning || isPaused) return 0f;
+        return lastFrameTickCount / Mathf.Max(Time.deltaTime, 0.001f);
+    }
 
     // ===== PRIVATE METHODS =====
 
@@ -255,7 +323,6 @@ public class SimulationEngine : MonoBehaviour
         {
             ships.Add(ship);
 
-            // Apply detection multiplier to behavior
             if (EnvironmentSettings.Instance != null)
             {
                 ShipBehavior behavior = ship.GetComponent<ShipBehavior>();
@@ -267,40 +334,26 @@ public class SimulationEngine : MonoBehaviour
         }
     }
 
-    private void StopTickLoop()
-    {
-        if (tickLoop != null)
-        {
-            StopCoroutine(tickLoop);
-            tickLoop = null;
-        }
-    }
-
-    private IEnumerator TickLoop()
-    {
-        while (isRunning && !isPaused)
-        {
-            DoOneTick();
-
-            if (maxTicks > 0 && tickCount >= maxTicks)
-            {
-                Debug.Log("Simulation COMPLETED - max ticks reached");
-                isRunning = false;
-                PrintFinalStats();
-                yield break;
-            }
-
-            yield return new WaitForSeconds(tickInterval);
-        }
-
-        tickLoop = null;
-    }
-
     private void DoOneTick()
     {
         tickCount++;
 
         CheckPeriodicSpawns();
+
+        // === NEW: Update trade routes for merchants (advance waypoints) ===
+        if (TradeRouteManager.Instance != null)
+        {
+            foreach (var ship in ships)
+            {
+                if (ship == null || ship.Data == null) continue;
+
+                if (ship.Data.type == ShipType.Cargo && 
+                    ship.Data.state == ShipState.Moving)
+                {
+                    TradeRouteManager.Instance.UpdateMerchantRoute(ship);
+                }
+            }
+        }
 
         // Run behavior AI
         foreach (var ship in ships)
@@ -331,6 +384,17 @@ public class SimulationEngine : MonoBehaviour
 
     private void HandleShipState(ShipController ship, int index)
     {
+        // === NEW: Check offscreen despawn for merchants ===
+        if (TradeRouteManager.Instance != null &&
+            TradeRouteManager.Instance.ShouldDespawnOffscreen(ship))
+        {
+            if (ship.Data.type == ShipType.Cargo)
+                merchantsExited++;
+            Destroy(ship.gameObject);
+            ships.RemoveAt(index);
+            return;
+        }
+
         switch (ship.Data.state)
         {
             case ShipState.Exited:
@@ -346,8 +410,6 @@ public class SimulationEngine : MonoBehaviour
                     merchantsCaptured++;
                     countedShipIds.Add(ship.Data.shipId);
                 }
-                // DON'T destroy - visual effect handles it
-                // Just remove from active list so it doesn't get ticked
                 ships.RemoveAt(index);
                 break;
 
@@ -357,8 +419,6 @@ public class SimulationEngine : MonoBehaviour
                     piratesDefeated++;
                     countedShipIds.Add(ship.Data.shipId);
                 }
-                // DON'T destroy - visual effect handles it
-                // Just remove from active list so it doesn't get ticked
                 ships.RemoveAt(index);
                 break;
         }
@@ -366,7 +426,6 @@ public class SimulationEngine : MonoBehaviour
 
     private void CheckPeriodicSpawns()
     {
-        // Use adjusted intervals (with environment multipliers applied)
         if (adjustedMerchantInterval > 0)
         {
             ticksSinceLastMerchant++;
@@ -402,15 +461,16 @@ public class SimulationEngine : MonoBehaviour
     {
         Debug.Log("===== FINAL STATISTICS =====");
         Debug.Log($"Total Ticks: {tickCount}");
+        Debug.Log($"Simulated Time: {GetSimulatedHours():F1} hours ({GetSimulatedDays():F1} days)");
         Debug.Log($"Merchants Escaped: {merchantsExited}");
         Debug.Log($"Merchants Captured: {merchantsCaptured}");
         Debug.Log($"Pirates Defeated: {piratesDefeated}");
-        
+
         if (EnvironmentSettings.Instance != null)
         {
             Debug.Log($"Conditions: {EnvironmentSettings.Instance.GetConditionsSummary()}");
         }
-        
+
         Debug.Log("============================");
     }
 }
