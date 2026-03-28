@@ -15,12 +15,10 @@ MonoBehaviour:
   mapName: Unnamed Map
   mapIndex: 0
   tradeRoutes:
-  - {fileID: 11400000, guid: e43d8a79290c4804390bce192e5a7591, type: 2}
-  - {fileID: 11400000, guid: ca1303a74d4c9614d82b8ade9f251c0b, type: 2}
-  - {fileID: 11400000, guid: 0705a0dc6f58ee14e80f4b205c2cf6ee, type: 2}
-  - {fileID: 11400000, guid: e318608ceafaf2044922b6db549d3692, type: 2}
-  - {fileID: 11400000, guid: 480fc8d68abfda441adf0b508c016ad9, type: 2}
   - {fileID: 11400000, guid: 40f4bcdbdbe2d1740866a8aeed598342, type: 2}
+  - {fileID: 11400000, guid: e9c0f28991b27ee429755a8d7215e729, type: 2}
+  - {fileID: 11400000, guid: 586be1f57a736b54c8613b4865bf0655, type: 2}
+  - {fileID: 11400000, guid: e31907a2f545edf4c89cfdd5212fbf60, type: 2}
   pirateBases:
   - baseName: 'Spot 1 '
     position: {x: -243, y: -22}

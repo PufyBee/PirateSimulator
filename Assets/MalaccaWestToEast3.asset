@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bbf5d6aba837444292f04ff002e6034, type: 3}
+  m_Name: MalaccaWestToEast3
+  m_EditorClassIdentifier: 
+  routeName: West to East 3
+  description: 
+  waypoints:
+  - {x: -357.01794, y: 130.87549}
+  - {x: -347.3681, y: 112.7821}
+  - {x: -324.44983, y: 94.68871}
+  - {x: -301.53152, y: 66.342415}
+  - {x: -274.39148, y: 40.408554}
+  - {x: -268.36032, y: 19.902716}
+  - {x: -241.82336, y: -13.871596}
+  - {x: -218.90508, y: -30.758757}
+  - {x: -202.01791, y: -43.424126}
+  - {x: -172.46538, y: -63.32685}
+  - {x: -144.11906, y: -68.15176}
+  - {x: -131.4537, y: -57.898834}
+  - {x: -115.77277, y: -24.727629}
+  - {x: -93.45759, y: 11.459135}
+  - {x: -69.33308, y: 30.758747}
+  - {x: -39.177425, y: 48.852135}
+  - {x: -19.2747, y: 72.97665}
+  - {x: -11.43425, y: 96.49806}
+  - {x: 0.62802887, y: 101.92606}
+  - {x: 46.4646, y: 145.95332}
+  - {x: 66.97046, y: 152.58755}
+  isReversible: 1
+  trafficWeight: 50
+  allowedShipTypes: 00000000
+  debugColor: {r: 0, g: 1, b: 1, a: 1}

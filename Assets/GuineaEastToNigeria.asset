@@ -10,19 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9bbf5d6aba837444292f04ff002e6034, type: 3}
-  m_Name: Guinea1
+  m_Name: GuineaEastToNigeria
   m_EditorClassIdentifier: 
-  routeName: Unnamed Route
+  routeName: East to Lagos, Nigeria
   description: 
   waypoints:
-  - {x: -350.10608, y: 65.446686}
-  - {x: -323.98877, y: 9.480996}
-  - {x: -313.62476, y: -41.09538}
-  - {x: -268.85223, y: -80.06406}
-  - {x: -222.00688, y: -114.05802}
-  - {x: -169.3577, y: -145.15004}
-  - {x: -169.3577, y: -160}
+  - {x: 34.40233, y: -153.19066}
+  - {x: 27.768082, y: -142.33463}
+  - {x: 12.690277, y: -121.82879}
+  - {x: 8.468475, y: -105.54475}
+  - {x: -6.609337, y: -62.72374}
+  - {x: -34.955627, y: -28.346306}
+  - {x: -61.4926, y: 9.046684}
+  - {x: -81.395325, y: 48.24903}
+  - {x: -101.90117, y: 82.02335}
+  - {x: -118.18522, y: 110.369644}
+  - {x: -151.35643, y: 129.06616}
   isReversible: 1
-  trafficWeight: 50
+  trafficWeight: 15
   allowedShipTypes: 00000000
   debugColor: {r: 0, g: 1, b: 1, a: 1}

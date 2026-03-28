@@ -17,6 +17,7 @@ MonoBehaviour:
   tradeRoutes:
   - {fileID: 11400000, guid: 9d7c0f106b685464391368c89cb41bea, type: 2}
   - {fileID: 11400000, guid: 58afdf724425e374db2d0d07924481e9, type: 2}
+  - {fileID: 11400000, guid: 60c037567cd9d4c4d9415f1df093aca9, type: 2}
   pirateBases:
   - baseName: Base 1
     position: {x: -10.166473, y: 101.927986}
