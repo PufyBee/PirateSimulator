@@ -10,19 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9bbf5d6aba837444292f04ff002e6034, type: 3}
-  m_Name: MalaccaNEToEastAsia 1
+  m_Name: Guinea3
   m_EditorClassIdentifier: 
   routeName: Unnamed Route
   description: 
   waypoints:
-  - {x: -375, y: 140}
-  - {x: -305, y: 128}
-  - {x: -275, y: 65}
-  - {x: -245, y: 22}
-  - {x: -195, y: -40}
-  - {x: -120, y: -65}
-  - {x: -20, y: -35}
-  - {x: 100, y: 20}
+  - {x: -231.54178, y: 109.80464}
+  - {x: -205.83902, y: 82.44366}
+  - {x: -179.30716, y: 55.082653}
+  - {x: -144.48409, y: 14.041155}
+  - {x: -114.63573, y: -15.807191}
+  - {x: -81.88545, y: -41.924488}
+  - {x: -44.989567, y: -48.972023}
+  - {x: -16.38491, y: -57.6778}
+  - {x: -9.751923, y: -93.74455}
+  - {x: 5.1722717, y: -124.836586}
+  - {x: 25.071175, y: -147.63742}
+  - {x: 25.071175, y: -160}
   isReversible: 1
   trafficWeight: 50
   allowedShipTypes: 00000000

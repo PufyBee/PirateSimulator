@@ -20,6 +20,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 0705a0dc6f58ee14e80f4b205c2cf6ee, type: 2}
   - {fileID: 11400000, guid: e318608ceafaf2044922b6db549d3692, type: 2}
   - {fileID: 11400000, guid: 480fc8d68abfda441adf0b508c016ad9, type: 2}
+  - {fileID: 11400000, guid: 40f4bcdbdbe2d1740866a8aeed598342, type: 2}
   pirateBases:
   - baseName: 'Spot 1 '
     position: {x: -243, y: -22}
@@ -36,11 +37,42 @@ MonoBehaviour:
     ambushPoints: []
     maxRoamDistance: 500
     spawnWeight: 1
+  - baseName: Base 4
+    position: {x: 13.048912, y: -45.240986}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 5
+    position: {x: -25.50521, y: 38.085663}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 6
+    position: {x: -84.37281, y: -12.490712}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
   navyPatrolZones:
-  - zoneName: Follow Merchants
+  - zoneName: Patrol Zone 1
     patrolWaypoints:
-    - {x: -310, y: 134}
-    - {x: -140, y: -60}
+    - {x: -313.2102, y: 133.84914}
+    - {x: -301.60248, y: 107.31728}
+    - {x: -285.84918, y: 67.104904}
+    - {x: -270.0959, y: 33.525505}
+    - {x: -252.26979, y: -4.199497}
+    - {x: -224.0797, y: -26.585766}
+    - {x: -196.71869, y: -46.070107}
+    - {x: -166.87035, y: -69.285484}
+    - {x: -140.33847, y: -84.62423}
+    - {x: -112.97748, y: -96.23192}
+    - {x: -110.49013, y: -116.54538}
+    - {x: -105.10082, y: -72.187416}
+    - {x: -126.65798, y: -41.09538}
+    - {x: -129.97446, y: -12.076143}
+    - {x: -140.75304, y: 28.136227}
+    - {x: -159.40826, y: 69.17773}
+    - {x: -190.91486, y: 101.927986}
+    - {x: -217.03215, y: 123.48514}
     pingPongPatrol: 1
-    assignedShips: 0
+    assignedShips: 1
   despawnBufferUnits: 30

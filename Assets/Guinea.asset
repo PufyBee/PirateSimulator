@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 374b7eef46cb53644b43786c0806fbb6, type: 3}
+  m_Name: Guinea
+  m_EditorClassIdentifier: 
+  mapName: Unnamed Map
+  mapIndex: 0
+  tradeRoutes:
+  - {fileID: 11400000, guid: 1efb10b6447670d48b397b3c7910d86e, type: 2}
+  - {fileID: 11400000, guid: 9ff925b65ace2334d9ba5231e0d90e3b, type: 2}
+  - {fileID: 11400000, guid: 1232cd261cdda4e49af39e8629dc84da, type: 2}
+  pirateBases:
+  - baseName: Base 1
+    position: {x: -350.10608, y: 77.883484}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 2
+    position: {x: -179.30716, y: 119.7541}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 3
+    position: {x: -55.353554, y: 49.693356}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 4
+    position: {x: 22.16925, y: -86.28248}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 5
+    position: {x: -66.546715, y: -67.62724}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 6
+    position: {x: 24.242035, y: -137.68796}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  navyPatrolZones:
+  - zoneName: Patrol Zone 1
+    patrolWaypoints:
+    - {x: -350.10608, y: 64.617546}
+    - {x: -246.05139, y: 90.3203}
+    - {x: -177.23434, y: 105.65903}
+    - {x: -128.31621, y: 89.49117}
+    - {x: -83.12914, y: 48.864235}
+    - {x: -31.309067, y: 44.71864}
+    - {x: 4.343132, y: 12.382934}
+    - {x: 31.704132, y: -9.174215}
+    - {x: 14.707153, y: -63.067078}
+    - {x: -3.533516, y: -95.402794}
+    - {x: 6.4159546, y: -131.46956}
+    - {x: 17.609077, y: -145.15004}
+    pingPongPatrol: 1
+    assignedShips: 1
+  despawnBufferUnits: 30
