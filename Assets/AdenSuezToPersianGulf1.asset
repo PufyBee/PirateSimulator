@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9bbf5d6aba837444292f04ff002e6034, type: 3}
-  m_Name: AdenSuezToPersianGulf
+  m_Name: AdenSuezToPersianGulf1
   m_EditorClassIdentifier: 
-  routeName: Suez to Persian Gulf
+  routeName: Suez to Persian Gulf 1
   description: 
   waypoints:
   - {x: -353.008, y: 128.04532}
@@ -29,6 +29,7 @@ MonoBehaviour:
   - {x: 43.726395, y: 116.4376}
   - {x: 76.06212, y: 137.99477}
   - {x: 90, y: 137.9948}
+  - {x: 136, y: 150}
   isReversible: 1
   trafficWeight: 50
   allowedShipTypes: 00000000

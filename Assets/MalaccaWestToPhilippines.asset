@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9bbf5d6aba837444292f04ff002e6034, type: 3}
   m_Name: MalaccaWestToPhilippines
   m_EditorClassIdentifier: 
-  routeName: West to East 1
+  routeName: West to Philippines
   description: 
   waypoints:
   - {x: -357.01794, y: 127.256805}

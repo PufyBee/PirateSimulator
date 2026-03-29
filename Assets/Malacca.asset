@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 374b7eef46cb53644b43786c0806fbb6, type: 3}
-  m_Name: MalaccaTradeRoutes
+  m_Name: Malacca
   m_EditorClassIdentifier: 
   mapName: Unnamed Map
   mapIndex: 0
@@ -19,6 +19,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: e9c0f28991b27ee429755a8d7215e729, type: 2}
   - {fileID: 11400000, guid: 586be1f57a736b54c8613b4865bf0655, type: 2}
   - {fileID: 11400000, guid: e31907a2f545edf4c89cfdd5212fbf60, type: 2}
+  - {fileID: 11400000, guid: 9661c980b58521846a59659cbefc642f, type: 2}
+  - {fileID: 11400000, guid: 2c4ebac171616cc4d892f935ebfcf7e8, type: 2}
   pirateBases:
   - baseName: 'Spot 1 '
     position: {x: -243, y: -22}
