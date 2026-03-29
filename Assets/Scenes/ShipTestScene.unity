@@ -3992,7 +3992,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ff18afd7eb869b849835dba404a6a298, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  placementEnabled: 1
+  placementEnabled: 0
   mode: 1
   targetRoute: {fileID: 11400000, guid: 40f4bcdbdbe2d1740866a8aeed598342, type: 2}
   targetMapRoutes: {fileID: 11400000, guid: 9d87eb0b7854b36478803bdd5483b5fa, type: 2}

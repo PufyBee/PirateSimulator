@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 374b7eef46cb53644b43786c0806fbb6, type: 3}
+  m_Name: Malacca
+  m_EditorClassIdentifier: 
+  mapName: Unnamed Map
+  mapIndex: 0
+  tradeRoutes:
+  - {fileID: 11400000, guid: 40f4bcdbdbe2d1740866a8aeed598342, type: 2}
+  - {fileID: 11400000, guid: e9c0f28991b27ee429755a8d7215e729, type: 2}
+  - {fileID: 11400000, guid: 586be1f57a736b54c8613b4865bf0655, type: 2}
+  - {fileID: 11400000, guid: e31907a2f545edf4c89cfdd5212fbf60, type: 2}
+  - {fileID: 11400000, guid: 9661c980b58521846a59659cbefc642f, type: 2}
+  - {fileID: 11400000, guid: 2c4ebac171616cc4d892f935ebfcf7e8, type: 2}
+  - {fileID: 11400000, guid: 849d204833254df4b805548f3a1ab177, type: 2}
+  - {fileID: 11400000, guid: e318608ceafaf2044922b6db549d3692, type: 2}
+  - {fileID: 11400000, guid: 480fc8d68abfda441adf0b508c016ad9, type: 2}
+  - {fileID: 11400000, guid: ca1303a74d4c9614d82b8ade9f251c0b, type: 2}
+  - {fileID: 11400000, guid: e43d8a79290c4804390bce192e5a7591, type: 2}
+  - {fileID: 11400000, guid: 0705a0dc6f58ee14e80f4b205c2cf6ee, type: 2}
+  pirateBases:
+  - baseName: 'Spot 1 '
+    position: {x: -243, y: -22}
+    ambushPoints: []
+    maxRoamDistance: 500
+    spawnWeight: 0
+  - baseName: Spot 2
+    position: {x: -191, y: -45}
+    ambushPoints: []
+    maxRoamDistance: 500
+    spawnWeight: 0
+  - baseName: Spot 3
+    position: {x: -149, y: -67}
+    ambushPoints: []
+    maxRoamDistance: 500
+    spawnWeight: 1
+  - baseName: Base 4
+    position: {x: 13.048912, y: -45.240986}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 5
+    position: {x: -25.50521, y: 38.085663}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 6
+    position: {x: -84.37281, y: -12.490712}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  navyPatrolZones:
+  - zoneName: Patrol Zone 1
+    patrolWaypoints:
+    - {x: -313.2102, y: 133.84914}
+    - {x: -301.60248, y: 107.31728}
+    - {x: -285.84918, y: 67.104904}
+    - {x: -270.0959, y: 33.525505}
+    - {x: -252.26979, y: -4.199497}
+    - {x: -224.0797, y: -26.585766}
+    - {x: -196.71869, y: -46.070107}
+    - {x: -166.87035, y: -69.285484}
+    - {x: -140.33847, y: -84.62423}
+    - {x: -112.97748, y: -96.23192}
+    - {x: -110.49013, y: -116.54538}
+    - {x: -105.10082, y: -72.187416}
+    - {x: -126.65798, y: -41.09538}
+    - {x: -129.97446, y: -12.076143}
+    - {x: -140.75304, y: 28.136227}
+    - {x: -159.40826, y: 69.17773}
+    - {x: -190.91486, y: 101.927986}
+    - {x: -217.03215, y: 123.48514}
+    pingPongPatrol: 1
+    assignedShips: 1
+  despawnBufferUnits: 30

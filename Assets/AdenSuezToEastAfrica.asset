@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bbf5d6aba837444292f04ff002e6034, type: 3}
+  m_Name: AdenSuezToEastAfrica
+  m_EditorClassIdentifier: 
+  routeName: Suez to East Africa
+  description: 
+  waypoints:
+  - {x: -356.4148, y: 117.607}
+  - {x: -355.8117, y: 117.0039}
+  - {x: -342.5432, y: 95.29183}
+  - {x: -331.6872, y: 72.97665}
+  - {x: -322.03738, y: 43.424126}
+  - {x: -316.00626, y: 25.933844}
+  - {x: -300.92844, y: 9.046684}
+  - {x: -290.0724, y: -4.824903}
+  - {x: -267.1541, y: -6.6342416}
+  - {x: -237.60158, y: 0}
+  - {x: -215.28639, y: 10.25291}
+  - {x: -188.74942, y: 16.887161}
+  - {x: -159.80002, y: 26.536966}
+  - {x: -128.43814, y: 19.902716}
+  - {x: -79.586, y: 6.6342325}
+  - {x: -45.20855, y: -10.252919}
+  - {x: -31.940067, y: -28.346306}
+  - {x: -27.115181, y: -59.10506}
+  - {x: -33.749424, y: -85.03891}
+  - {x: -48.224113, y: -118.813225}
+  - {x: -50.63659, y: -139.92218}
+  - {x: -68.72996, y: -151.98444}
+  isReversible: 1
+  trafficWeight: 5
+  allowedShipTypes: 00000000
+  debugColor: {r: 0, g: 1, b: 1, a: 1}
