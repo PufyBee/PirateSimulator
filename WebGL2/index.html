@@ -6,23 +6,12 @@
     <title>Pirate Simulator | Unity WebGL Player</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
-    <style type="text/css">
-      html, body {
-        height: 100%;
-         margin: 0;
-      }
-      #unityPlayer {
-        position:fixed;
-        top:0px;
-        left:0px;
-        height: 100%;
-        width: 100%;
-      }
-    </style>
   </head>
   <body>
     <div id="unity-container" class="unity-desktop">
-      <canvas id="unity-canvas" width=1920 height=1080 tabindex="-1"></canvas>
+      <canvas id="unity-canvas" width=1920 height=1080 style="width: 100%; height: 100%;" tabindex="-1">
+
+      </canvas>
       <div id="unity-loading-bar">
         <div id="unity-logo"></div>
         <div id="unity-progress-bar-empty">
@@ -70,11 +59,11 @@
       }
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/WebGL.loader.js";
+      var loaderUrl = buildUrl + "/WebGL2.loader.js";
       var config = {
-        dataUrl: buildUrl + "/WebGL.data.unityweb",
-        frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb",
-        codeUrl: buildUrl + "/WebGL.wasm.unityweb",
+        dataUrl: buildUrl + "/WebGL2.data.unityweb",
+        frameworkUrl: buildUrl + "/WebGL2.framework.js.unityweb",
+        codeUrl: buildUrl + "/WebGL2.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
         productName: "Pirate Simulator",
@@ -110,15 +99,14 @@
 
         // To lower canvas resolution on mobile devices to gain some
         // performance, uncomment the following line:
-        // config.devicePixelRatio = 1;
+        config.devicePixelRatio = 1;
 
 
       } else {
-        // Desktop style: This needs to be automatically scaled to fit any window
-        //while maintaining its ratio
+        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
 
-        canvas.style.width = "1920px";
-        canvas.style.height = "1080px";
+        canvas.style.width = window.screen.width/1.25 + "px";
+        canvas.style.height = window.screen.height/1.25 + "px";
       }
 
       loadingBar.style.display = "block";
