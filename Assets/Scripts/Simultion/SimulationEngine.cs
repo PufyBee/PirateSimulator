@@ -9,7 +9,7 @@ using UnityEngine;
 /// 1. DoOneTick() now updates merchant trade routes (advances waypoints)
 /// 2. HandleShipState() checks offscreen despawn via TradeRouteManager
 /// 3. ResetToNewRun() clears TradeRouteManager assignments
-/// 4. All changes are guarded by null checks — works fine without TradeRouteManager
+/// 4. All changes are guarded by null checks u2014 works fine without TradeRouteManager
 /// </summary>
 public class SimulationEngine : MonoBehaviour
 {
@@ -275,6 +275,7 @@ public class SimulationEngine : MonoBehaviour
     public int GetMerchantsCaptured() => merchantsCaptured;
     public int GetPiratesDefeated() => piratesDefeated;
     public int GetActiveShipCount() => ships.Count;
+    public List<ShipController> GetActiveShips() => ships;
     public float GetSpeedMultiplier() => speedMultiplier;
     public int GetTicksLastFrame() => lastFrameTickCount;
 
@@ -410,6 +411,7 @@ public class SimulationEngine : MonoBehaviour
                     merchantsCaptured++;
                     countedShipIds.Add(ship.Data.shipId);
                 }
+                Destroy(ship.gameObject, 0.5f);
                 ships.RemoveAt(index);
                 break;
 
@@ -419,6 +421,7 @@ public class SimulationEngine : MonoBehaviour
                     piratesDefeated++;
                     countedShipIds.Add(ship.Data.shipId);
                 }
+                Destroy(ship.gameObject, 0.5f);
                 ships.RemoveAt(index);
                 break;
         }

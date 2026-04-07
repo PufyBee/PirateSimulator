@@ -300,6 +300,10 @@ public class SimpleButtons : MonoBehaviour
             runtimeStatsOverlay = FindObjectOfType<RuntimeStatsOverlay>();
             if (runtimeStatsOverlay != null) runtimeStatsOverlay.Show();
         }
+
+        // Hide persistent help button during simulation to avoid blocking live stats
+        if (HelpPanel.Instance != null)
+            HelpPanel.Instance.HidePersistentButton();
     }
 
     void OnPauseClicked()
@@ -408,6 +412,10 @@ public class SimpleButtons : MonoBehaviour
         if (liveResultsPanel) liveResultsPanel.HideLiveResults();
         if (runtimeStatsOverlay) runtimeStatsOverlay.Hide();
         if (RuntimeStatsOverlay.Instance != null) RuntimeStatsOverlay.Instance.Hide();
+
+        // Show persistent help button again after returning to setup
+        if (HelpPanel.Instance != null)
+            HelpPanel.Instance.ShowPersistentButton();
     }
 
     void SetRuntimeUIState(bool isRunning)
@@ -781,9 +789,9 @@ public class SimpleButtons : MonoBehaviour
         if (statsText == null) return;
 
         int merchants = 0, pirates = 0, security = 0;
-        if (ShipSpawner.Instance != null)
+        if (engine != null)
         {
-            foreach (var ship in ShipSpawner.Instance.GetActiveShips())
+            foreach (var ship in engine.GetActiveShips())
             {
                 if (ship == null || ship.Data == null) continue;
                 switch (ship.Data.type)

@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bbf5d6aba837444292f04ff002e6034, type: 3}
+  m_Name: Aden2
+  m_EditorClassIdentifier: 
+  routeName: Unnamed Route
+  description: 
+  waypoints:
+  - {x: -353.42255, y: 125.14338}
+  - {x: -340.98572, y: 101.51343}
+  - {x: -326.06158, y: 64.203}
+  - {x: -321.5014, y: 32.281826}
+  - {x: -295.79865, y: 3.2625985}
+  - {x: -279.6308, y: -17.465431}
+  - {x: -230.2981, y: -4.199497}
+  - {x: -200.8643, y: 14.870293}
+  - {x: -168.11401, y: -4.199497}
+  - {x: -138.68022, y: -12.905263}
+  - {x: -104.686264, y: -19.952799}
+  - {x: -61.15741, y: -17.465431}
+  - {x: -33.381855, y: -26.171206}
+  - {x: -28.407139, y: -44.411858}
+  - {x: -10.581055, y: -62.23797}
+  - {x: 22.16925, y: -96.23192}
+  - {x: 38.33709, y: -111.15609}
+  - {x: 61.137924, y: -128.9822}
+  - {x: 61.137924, y: -160}
+  isReversible: 1
+  trafficWeight: 50
+  allowedShipTypes: 00000000
+  debugColor: {r: 0, g: 1, b: 1, a: 1}

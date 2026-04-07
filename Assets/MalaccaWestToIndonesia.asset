@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bbf5d6aba837444292f04ff002e6034, type: 3}
+  m_Name: MalaccaWestToIndonesia
+  m_EditorClassIdentifier: 
+  routeName: West to Indonesia
+  description: 
+  waypoints:
+  - {x: -357.62103, y: 126.6537}
+  - {x: -357.62103, y: 126.6537}
+  - {x: -296.70663, y: 65.13619}
+  - {x: -268.96344, y: 16.284039}
+  - {x: -238.20468, y: -9.046693}
+  - {x: -214.08017, y: -35.58366}
+  - {x: -162.81558, y: -65.13619}
+  - {x: -130.24748, y: -64.53308}
+  - {x: -97.07627, y: -88.657585}
+  - {x: -65.11128, y: -112.17899}
+  - {x: -37.971222, y: -130.27237}
+  - {x: -10.831131, y: -150.1751}
+  - {x: -2.26, y: -152.58755}
+  isReversible: 1
+  trafficWeight: 50
+  allowedShipTypes: 00000000
+  debugColor: {r: 0, g: 1, b: 1, a: 1}

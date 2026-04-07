@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bbf5d6aba837444292f04ff002e6034, type: 3}
+  m_Name: GuineaWestToNigeria
+  m_EditorClassIdentifier: 
+  routeName: West to Lagos, Nigeria
+  description: 
+  waypoints:
+  - {x: -356.4148, y: 79.007774}
+  - {x: -325.65607, y: 71.770424}
+  - {x: -296.70663, y: 77.19845}
+  - {x: -250.26695, y: 95.894936}
+  - {x: -224.3331, y: 100.11674}
+  - {x: -202.01791, y: 103.73541}
+  - {x: -167.64047, y: 113.98833}
+  - {x: -152.56265, y: 128.46303}
+  isReversible: 1
+  trafficWeight: 15
+  allowedShipTypes: 00000000
+  debugColor: {r: 0, g: 1, b: 1, a: 1}

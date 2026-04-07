@@ -1,0 +1,88 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 374b7eef46cb53644b43786c0806fbb6, type: 3}
+  m_Name: Aden
+  m_EditorClassIdentifier: 
+  mapName: Unnamed Map
+  mapIndex: 0
+  tradeRoutes:
+  - {fileID: 11400000, guid: 9d7c0f106b685464391368c89cb41bea, type: 2}
+  - {fileID: 11400000, guid: 58afdf724425e374db2d0d07924481e9, type: 2}
+  - {fileID: 11400000, guid: 60c037567cd9d4c4d9415f1df093aca9, type: 2}
+  - {fileID: 11400000, guid: 60c037567cd9d4c4d9415f1df093aca9, type: 2}
+  - {fileID: 11400000, guid: 60c037567cd9d4c4d9415f1df093aca9, type: 2}
+  - {fileID: 11400000, guid: 8e946179fecba3a4eb2277c56eb20faf, type: 2}
+  - {fileID: 11400000, guid: f6a2b8aa044f8484e8e9c5bd9e583674, type: 2}
+  pirateBases:
+  - baseName: Base 1
+    position: {x: -10.166473, y: 101.927986}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 2
+    position: {x: 39.99533, y: 6.1645174}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 3
+    position: {x: -17.214012, y: -10.832464}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 4
+    position: {x: -49.549698, y: -95.81735}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 5
+    position: {x: -62.81565, y: -131.46956}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 6
+    position: {x: -219.10497, y: 18.186771}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 7
+    position: {x: -146.1423, y: 36.42744}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  - baseName: Base 8
+    position: {x: -101.369774, y: 58.39915}
+    ambushPoints: []
+    maxRoamDistance: 50
+    spawnWeight: 50
+  navyPatrolZones:
+  - zoneName: Patrol Zone 1
+    patrolWaypoints:
+    - {x: -345.13135, y: 111.048325}
+    - {x: -311.1374, y: 20.67413}
+    - {x: -279.21625, y: -13.319823}
+    - {x: -221.17776, y: 3.2625985}
+    - {x: -163.96841, y: 21.91781}
+    - {x: -117.12308, y: 31.867264}
+    - {x: -88.10386, y: 48.449677}
+    - {x: -51.20797, y: 56.74089}
+    - {x: -3.9480667, y: 57.155453}
+    - {x: 38.33709, y: 49.693356}
+    - {x: 64.039856, y: 33.940063}
+    - {x: 70.258286, y: 7.822757}
+    - {x: 67.77092, y: -32.389614}
+    - {x: 32.947784, y: -46.899227}
+    - {x: -15.555771, y: -50.630264}
+    - {x: -28.821724, y: -65.139885}
+    - {x: -32.13817, y: -90.842636}
+    pingPongPatrol: 1
+    assignedShips: 1
+  despawnBufferUnits: 30

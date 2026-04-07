@@ -994,7 +994,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 153718189}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 270c896556e7a7a4a80eb9e9a5dbc661, type: 3}
   m_Name: 
@@ -2276,6 +2276,7 @@ GameObject:
   m_Component:
   - component: {fileID: 709728275}
   - component: {fileID: 709728274}
+  - component: {fileID: 709728276}
   m_Layer: 0
   m_Name: RuntimeStatsOverlay
   m_TagString: Untagged
@@ -2298,24 +2299,42 @@ MonoBehaviour:
   engine: {fileID: 1335423986}
   position: 0
   offset: {x: 10, y: -10}
-  backgroundColor: {r: 0, g: 0, b: 0, a: 0.7}
+  backgroundColor: {r: 0, g: 0, b: 0, a: 0.5882353}
   textColor: {r: 1, g: 1, b: 1, a: 1}
   fontSize: 16
---- !u!4 &709728275
-Transform:
+--- !u!224 &709728275
+RectTransform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 709728273}
-  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -147.11836, y: -36.98492, z: 10.068469}
+  m_LocalPosition: {x: 0, y: 0, z: 10.068469}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: -147.11836, y: -36.98492}
+  m_SizeDelta: {x: 200, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &709728276
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 709728273}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3245ec927659c4140ac4f8d17403cc18, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_HorizontalFit: 0
+  m_VerticalFit: 2
 --- !u!1 &752783885
 GameObject:
   m_ObjectHideFlags: 0
@@ -3933,6 +3952,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1179009318}
   - component: {fileID: 1179009317}
+  - component: {fileID: 1179009319}
   m_Layer: 0
   m_Name: TradeRouteManager
   m_TagString: Untagged
@@ -3953,9 +3973,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mapRouteData:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: a99bc5a2551d85a4d80c7c92bc0f4380, type: 2}
   - {fileID: 11400000, guid: 9d87eb0b7854b36478803bdd5483b5fa, type: 2}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: ec21a6b62963d2f41b67e3950f261cf2, type: 2}
   despawnBuffer: 30
   minRouteProgressToDespawn: 0.1
   spawnScatterRadius: 15
@@ -3979,6 +3999,28 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1179009319
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1179009316}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff18afd7eb869b849835dba404a6a298, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  placementEnabled: 0
+  mode: 1
+  targetRoute: {fileID: 11400000, guid: 40f4bcdbdbe2d1740866a8aeed598342, type: 2}
+  targetMapRoutes: {fileID: 11400000, guid: 9d87eb0b7854b36478803bdd5483b5fa, type: 2}
+  pirateBaseIndex: 0
+  waypointColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  markerSize: 4
+  showCoordinateLabel: 1
+  currentWaypointCount: 0
+  lastPlacedPosition: {x: 0, y: 0}
 --- !u!1 &1187766586
 GameObject:
   m_ObjectHideFlags: 0
@@ -7430,14 +7472,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   allMapData:
   - {fileID: 11400000, guid: 9d87eb0b7854b36478803bdd5483b5fa, type: 2}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: ec21a6b62963d2f41b67e3950f261cf2, type: 2}
+  - {fileID: 11400000, guid: a99bc5a2551d85a4d80c7c92bc0f4380, type: 2}
   previewMapIndex: 0
-  showTradeRoutes: 1
-  showPirateBases: 1
-  showNavyPatrols: 1
-  showWaypointNumbers: 1
-  showNames: 1
+  showTradeRoutes: 0
+  showPirateBases: 0
+  showNavyPatrols: 0
+  showWaypointNumbers: 0
+  showNames: 0
   waypointSize: 3
   baseSize: 6
   ambushSize: 4
@@ -8672,6 +8714,6 @@ SceneRoots:
   - {fileID: 1051679580}
   - {fileID: 981928272}
   - {fileID: 815269509}
-  - {fileID: 709728275}
   - {fileID: 315903822}
   - {fileID: 1179009318}
+  - {fileID: 709728275}

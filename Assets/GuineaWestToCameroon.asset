@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bbf5d6aba837444292f04ff002e6034, type: 3}
+  m_Name: GuineaWestToCameroon
+  m_EditorClassIdentifier: 
+  routeName: West to Douala, Cameroon
+  description: 
+  waypoints:
+  - {x: -343.74945, y: 73.57977}
+  - {x: -311.78445, y: 74.18288}
+  - {x: -273.18524, y: 87.451355}
+  - {x: -238.80779, y: 98.910515}
+  - {x: -204.43036, y: 110.97277}
+  - {x: -171.25916, y: 122.43191}
+  - {x: -135.07239, y: 110.369644}
+  - {x: -103.10739, y: 77.80155}
+  - {x: -74.15796, y: 51.867706}
+  - {x: -36.764984, y: 53.073933}
+  - {x: -1.7844467, y: 60.91439}
+  - {x: 21.736961, y: 48.852135}
+  - {x: 43.449043, y: 43.424126}
+  isReversible: 1
+  trafficWeight: 8
+  allowedShipTypes: 00000000
+  debugColor: {r: 0, g: 1, b: 1, a: 1}

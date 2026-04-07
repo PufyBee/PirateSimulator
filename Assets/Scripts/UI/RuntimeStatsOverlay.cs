@@ -5,20 +5,7 @@ using TMPro;
 /// <summary>
 /// Runtime Stats Overlay - Self-contained statistics display
 /// 
-/// Creates its own UI overlay showing live stats during simulation.
-/// Works independently of any existing UI setup.
-/// 
-/// SETUP:
-/// 1. Add this to any GameObject
-/// 2. Assign the SimulationEngine reference
-/// 3. That's it - creates its own Canvas and display
-/// 
-/// FEATURES:
-/// - Shows active ship counts
-/// - Shows outcomes (escaped, captured, defeated)
-/// - Shows protection rate with color coding
-/// - Shows current environment conditions
-/// - Auto-hides during setup, shows during run
+/// FIXED: Uses engine.GetActiveShips() instead of ShipSpawner.GetActiveShips()
 /// </summary>
 public class RuntimeStatsOverlay : MonoBehaviour
 {
@@ -45,7 +32,6 @@ public class RuntimeStatsOverlay : MonoBehaviour
         BottomRight
     }
 
-    // Created UI elements
     private GameObject canvasObject;
     private GameObject panelObject;
     private TMP_Text statsText;
@@ -59,7 +45,7 @@ public class RuntimeStatsOverlay : MonoBehaviour
     void Start()
     {
         CreateOverlay();
-        Hide(); // Start hidden
+        Hide();
     }
 
     void Update()
@@ -70,9 +56,6 @@ public class RuntimeStatsOverlay : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Show the overlay (call when simulation starts)
-    /// </summary>
     public void Show()
     {
         if (panelObject != null)
@@ -80,9 +63,6 @@ public class RuntimeStatsOverlay : MonoBehaviour
         isShowing = true;
     }
 
-    /// <summary>
-    /// Hide the overlay (call when returning to setup)
-    /// </summary>
     public void Hide()
     {
         if (panelObject != null)
@@ -92,11 +72,10 @@ public class RuntimeStatsOverlay : MonoBehaviour
 
     void CreateOverlay()
     {
-        // Create Canvas
         canvasObject = new GameObject("RuntimeStatsCanvas");
         Canvas canvas = canvasObject.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 100; // On top of other UI
+        canvas.sortingOrder = 100;
 
         CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -104,18 +83,16 @@ public class RuntimeStatsOverlay : MonoBehaviour
 
         canvasObject.AddComponent<GraphicRaycaster>();
 
-        // Create Panel
         panelObject = new GameObject("StatsPanel");
         panelObject.transform.SetParent(canvasObject.transform, false);
 
         RectTransform panelRect = panelObject.AddComponent<RectTransform>();
         SetAnchorPosition(panelRect);
-        panelRect.sizeDelta = new Vector2(200, 220);  // Smaller panel
+        panelRect.sizeDelta = new Vector2(200, 290);
 
         Image panelBg = panelObject.AddComponent<Image>();
         panelBg.color = backgroundColor;
 
-        // Add padding via VerticalLayoutGroup
         VerticalLayoutGroup layout = panelObject.AddComponent<VerticalLayoutGroup>();
         layout.padding = new RectOffset(12, 12, 10, 10);
         layout.childAlignment = TextAnchor.UpperLeft;
@@ -123,7 +100,6 @@ public class RuntimeStatsOverlay : MonoBehaviour
         layout.childControlHeight = false;
         layout.childForceExpandWidth = true;
 
-        // Create stats text
         GameObject textObj = new GameObject("StatsText");
         textObj.transform.SetParent(panelObject.transform, false);
 
@@ -133,9 +109,8 @@ public class RuntimeStatsOverlay : MonoBehaviour
         statsText.alignment = TextAlignmentOptions.TopLeft;
 
         LayoutElement le = textObj.AddComponent<LayoutElement>();
-        le.preferredHeight = 260;
+        le.preferredHeight = 350;
 
-        // Initial text
         statsText.text = "Initializing...";
     }
 
@@ -174,7 +149,6 @@ public class RuntimeStatsOverlay : MonoBehaviour
     {
         if (engine == null)
         {
-            // Try to find engine
             engine = FindObjectOfType<SimulationEngine>();
             if (engine == null)
             {
@@ -183,11 +157,11 @@ public class RuntimeStatsOverlay : MonoBehaviour
             }
         }
 
-        // Get ship counts
+        // FIXED: Use engine.GetActiveShips() instead of ShipSpawner
         int merchants = 0, pirates = 0, security = 0;
-        if (ShipSpawner.Instance != null)
+        if (engine != null)
         {
-            foreach (var ship in ShipSpawner.Instance.GetActiveShips())
+            foreach (var ship in engine.GetActiveShips())
             {
                 if (ship == null || ship.Data == null) continue;
                 switch (ship.Data.type)
@@ -199,12 +173,10 @@ public class RuntimeStatsOverlay : MonoBehaviour
             }
         }
 
-        // Get outcomes
         int escaped = engine.GetMerchantsExited();
         int captured = engine.GetMerchantsCaptured();
         int defeated = engine.GetPiratesDefeated();
 
-        // Get conditions
         string conditions = "Normal";
         string effects = "";
         if (EnvironmentSettings.Instance != null)
@@ -218,13 +190,15 @@ public class RuntimeStatsOverlay : MonoBehaviour
             }
         }
 
-        // Get tick count
         int ticks = engine.GetTickCount();
+        float simHours = engine.GetSimulatedHours();
+        int simDays = Mathf.FloorToInt(simHours / 24f);
+        int displayHours = Mathf.FloorToInt(simHours % 24f);
 
-        // Build display string - NO GRADE OR PROTECTION RATE
         statsText.text = 
             $"<b>═══ LIVE STATS ═══</b>\n" +
             $"<color=#AAAAAA>Tick: {ticks}</color>\n" +
+            $"<color=#AAAAAA>Elapsed: Day {simDays + 1}, {displayHours}h</color>\n" +
             $"<color=#AAAAAA>{conditions}</color>{effects}\n" +
             $"\n" +
             $"<b>ACTIVE SHIPS</b>\n" +
@@ -238,7 +212,6 @@ public class RuntimeStatsOverlay : MonoBehaviour
             $"<color=#44FFFF>Defeated: {defeated}</color>";
     }
 
-    // Keep these for potential future use but they're not called anymore
     string GetGrade(float rate)
     {
         if (rate >= 90) return "A+";
@@ -251,10 +224,10 @@ public class RuntimeStatsOverlay : MonoBehaviour
 
     string GetGradeColorHex(float rate)
     {
-        if (rate >= 80) return "#44FF44"; // Green
-        if (rate >= 70) return "#AAFF44"; // Yellow-green
-        if (rate >= 60) return "#FFFF44"; // Yellow
-        if (rate >= 50) return "#FFAA44"; // Orange
-        return "#FF4444"; // Red
+        if (rate >= 80) return "#44FF44";
+        if (rate >= 70) return "#AAFF44";
+        if (rate >= 60) return "#FFFF44";
+        if (rate >= 50) return "#FFAA44";
+        return "#FF4444";
     }
 }
