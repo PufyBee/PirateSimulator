@@ -23,7 +23,7 @@ public class ShipVisualEffects : MonoBehaviour
     public Color wakeColor = new Color(1f, 1f, 1f, 0.6f);
 
     [Header("=== RADAR PING SETTINGS ===")]
-    public bool enableRadarPing = true;
+    public bool enableRadarPing = false;
     public float pingCooldown = 2f;
     public float pingExpandTime = 0.5f;
     public float pingMaxRadius = 2f;
@@ -46,6 +46,7 @@ public class ShipVisualEffects : MonoBehaviour
 
     void Start()
     {
+        enableRadarPing = false;
         if (enableWake)
             SetupWakeTrail();
     }

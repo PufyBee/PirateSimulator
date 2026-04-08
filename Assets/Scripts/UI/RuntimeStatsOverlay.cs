@@ -191,10 +191,14 @@ public class RuntimeStatsOverlay : MonoBehaviour
         }
 
         int ticks = engine.GetTickCount();
+        float simHours = engine.GetSimulatedHours();
+        int simDays = Mathf.FloorToInt(simHours / 24f);
+        int displayHours = Mathf.FloorToInt(simHours % 24f);
 
         statsText.text = 
             $"<b>═══ LIVE STATS ═══</b>\n" +
             $"<color=#AAAAAA>Tick: {ticks}</color>\n" +
+            $"<color=#AAAAAA>Elapsed: Day {simDays + 1}, {displayHours}h</color>\n" +
             $"<color=#AAAAAA>{conditions}</color>{effects}\n" +
             $"\n" +
             $"<b>ACTIVE SHIPS</b>\n" +
