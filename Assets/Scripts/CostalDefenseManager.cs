@@ -467,8 +467,9 @@ public class DraggableBattery : MonoBehaviour
             defenseComponent.enabled = true;
             Debug.Log($"DraggableBattery {batteryIndex}: CoastalDefense ENABLED");
 
-            // Dim the range indicator during runtime
-            rangeRenderer.color = new Color(originalRangeColor.r, originalRangeColor.g, originalRangeColor.b, 0.15f);
+            // HIDE the range indicator entirely during simulation
+            // (previously dimmed to 0.15 alpha but was still causing visible red rings)
+            rangeIndicator.SetActive(false);
 
             if (manager.showDebugLogs)
                 Debug.Log($"Battery {batteryIndex + 1} ACTIVATED at {pos}");
