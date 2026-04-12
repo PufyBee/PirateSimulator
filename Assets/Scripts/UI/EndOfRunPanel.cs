@@ -83,6 +83,7 @@ public class EndOfRunPanel : MonoBehaviour
     {
         // Gather stats from SimulationEngine
         GatherStats();
+        CSVExporter.CacheFinalStats(); 
         UpdateDisplay();
 
         if (canvasObject != null)

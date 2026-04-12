@@ -691,7 +691,7 @@ public class SimpleButtons : MonoBehaviour
     private const int MAX_INITIAL_SHIPS = 50;
     private const int MAX_TOTAL_SHIPS = 100;
     private const int MAX_DURATION = 100000;
-    private const int SPAWN_RATE_BASE = 100;
+    private const int SPAWN_RATE_BASE = 300;
 
     void ApplySettingsFromInputs()
     {
@@ -733,7 +733,7 @@ public class SimpleButtons : MonoBehaviour
     int ConvertRateToInterval(int rate)
     {
         if (rate <= 0) return 99999;
-        return Mathf.Max(10, SPAWN_RATE_BASE / rate);
+        return Mathf.Max(5, SPAWN_RATE_BASE / rate);
     }
 
     int ParseInt(TMP_InputField input, int defaultValue)
@@ -746,22 +746,26 @@ public class SimpleButtons : MonoBehaviour
     }
 
     int ParseIntClamped(TMP_InputField input, int defaultValue, int min, int max)
+{
+    if (input == null) 
     {
-        if (input == null) 
-        {
-            Debug.LogWarning($"Input field NULL, using default: {defaultValue}");
-            return defaultValue;
-        }
-        if (string.IsNullOrEmpty(input.text)) return defaultValue;
-        if (int.TryParse(input.text, out int result))
-        {
-            int clamped = Mathf.Clamp(result, min, max);
-            if (clamped != result)
-                input.text = clamped.ToString();
-            return clamped;
-        }
+        Debug.LogWarning($"Input field NULL, using default: {defaultValue}");
         return defaultValue;
     }
+    if (string.IsNullOrEmpty(input.text)) return defaultValue;
+    if (int.TryParse(input.text, out int result))
+    {
+        int clamped = Mathf.Clamp(result, min, max);
+        if (clamped != result)
+        {
+            input.text = clamped.ToString();
+            ToastNotification.Show($"Value capped at {clamped} (max {max})");
+        }
+        return clamped;
+    }
+    ToastNotification.Show($"Input clamped to default value {defaultValue}");
+    return defaultValue;
+}
 
     void UpdatePauseButtonText()
     {
