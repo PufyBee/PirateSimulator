@@ -26,6 +26,8 @@ public class CoastalDefenseManager : MonoBehaviour
     [Tooltip("Maximum number of coastal defense batteries")]
     public int maxBatteries = 3;
 
+    public Sprite cannonSprite;
+
     [Tooltip("Firing range for each battery")]
     public float batteryRange = 8f;
 
@@ -116,8 +118,10 @@ public class CoastalDefenseManager : MonoBehaviour
 
         // Main battery sprite (square/tower icon)
         SpriteRenderer sr = obj.AddComponent<SpriteRenderer>();
-        sr.sprite = CreateBatterySprite();
-        sr.color = batteryColor;
+        sr.sprite = cannonSprite;
+        sr.drawMode = SpriteDrawMode.Sliced;
+        sr.size = new Vector2(2.0f, 2.0f);
+        //sr.color = batteryColor;
         sr.sortingOrder = 50;
 
         // Range indicator (child object)
@@ -140,7 +144,7 @@ public class CoastalDefenseManager : MonoBehaviour
         collider.radius = 5f;
 
         // Also make the visual sprite bigger
-        obj.transform.localScale = Vector3.one * 3f;
+        obj.transform.localScale = Vector3.one * 3.0f;
 
         return obj;
     }
@@ -239,9 +243,9 @@ public class CoastalDefenseManager : MonoBehaviour
 
     // ===== SPRITE GENERATION =====
 
-    Sprite CreateBatterySprite()
+    /*Sprite CreateBatterySprite()
     {
-        int size = 32;
+        int size = 64;
         Texture2D tex = new Texture2D(size, size);
         Color[] pixels = new Color[size * size];
 
@@ -294,12 +298,13 @@ public class CoastalDefenseManager : MonoBehaviour
 
         tex.SetPixels(pixels);
         tex.Apply();
-        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
-    }
+        //return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+        return cannonSprite;
+    }*/
 
     Sprite CreateCircleSprite()
     {
-        int size = 64;
+        int size = 32;
         Texture2D tex = new Texture2D(size, size);
         Color[] pixels = new Color[size * size];
 

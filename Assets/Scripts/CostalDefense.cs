@@ -26,17 +26,17 @@ public class CoastalDefense : MonoBehaviour
     public float firingRange = 150f;
     
     [Tooltip("Time between shots in seconds")]
-    public float cooldownTime = 3f;
+    public float cooldownTime = 1f;
     
     [Tooltip("Time to lock on before firing")]
-    public float lockOnTime = 0.8f;
+    public float lockOnTime = 0.1f;
 
     [Header("=== MISSILE SETTINGS ===")]
     [Tooltip("How fast the missile travels")]
-    public float missileSpeed = 20f;
+    public float missileSpeed = 100f;
     
     [Tooltip("Missile size")]
-    public float missileScale = 0.5f;
+    public float missileScale = 2.5f;
 
     [Header("=== VISUALS ===")]
     [Tooltip("Color of the missile")]

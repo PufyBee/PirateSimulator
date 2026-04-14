@@ -445,6 +445,7 @@ public class SimulationEngine : MonoBehaviour
             if (ticksSinceLastPirate >= adjustedPirateInterval)
             {
                 SpawnShip(ShipType.Pirate);
+                Debug.Log($"Pirate spawned at tick {tickCount} (interval {adjustedPirateInterval})");
                 ticksSinceLastPirate = 0;
             }
         }
