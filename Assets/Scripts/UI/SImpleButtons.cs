@@ -732,7 +732,7 @@ public class SimpleButtons : MonoBehaviour
 
     int ConvertRateToInterval(int rate)
     {
-        if (rate <= 0) return 99999;
+        if (rate <= 0) return 0;
         return Mathf.Max(5, SPAWN_RATE_BASE / rate);
     }
 
