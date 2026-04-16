@@ -3,156 +3,367 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Pirate Simulator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PIRATES - Maritime Piracy Simulator</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
     <style>
       html, body {
-        margin: 0 !important;
-        padding: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        overflow: hidden !important;
-        background: #000 !important;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #000000;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       }
 
+      /* Main container holds the Unity canvas at 16:9 aspect ratio */
       #unity-container {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background: #000 !important;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background: #000;
       }
 
       #unity-canvas {
-        background: #000 !important;
-        display: block !important;
-      }
-
-      #unity-loading-bar {
-        position: absolute !important;
-        left: 50% !important;
-        top: 50% !important;
-        transform: translate(-50%, -50%) !important;
-        display: none;
-      }
-      #unity-progress-bar-empty {
-        width: 200px;
-        height: 18px;
-        background: #2b2b2b;
-        border: 1px solid #555;
-      }
-      #unity-progress-bar-full {
-        width: 0%;
+        width: 100%;
         height: 100%;
-        background: #4a90e2;
-        transition: width 0.2s;
+        display: block;
+        background: #000;
       }
 
-      #unity-logo,
-      #unity-footer,
-      #unity-webgl-logo,
-      #unity-fullscreen-button,
-      #unity-build-title,
-      #unity-warning {
-        display: none !important;
-        visibility: hidden !important;
-        width: 0 !important;
-        height: 0 !important;
-        position: absolute !important;
-        left: -9999px !important;
+      /* Loading indicator */
+      #unity-loading-bar {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        display: none;
+        color: white;
+        font-size: 18px;
+      }
+
+      #unity-loading-bar.active {
+        display: block;
+      }
+
+      /* ============================================
+         MOBILE: Rotate-to-landscape overlay
+         ============================================ */
+      #rotate-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #0a1f44 0%, #06142f 100%);
+        z-index: 9999;
+        color: white;
+        text-align: center;
+        padding: 20px;
+        box-sizing: border-box;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+
+      #rotate-overlay.visible {
+        display: flex;
+      }
+
+      #rotate-overlay .phone-icon {
+        width: 80px;
+        height: 130px;
+        border: 4px solid #d4a24c;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        position: relative;
+        animation: rotatePhone 2.5s ease-in-out infinite;
+        transform-origin: center;
+      }
+
+      #rotate-overlay .phone-icon::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 30px;
+        height: 4px;
+        background: #d4a24c;
+        border-radius: 2px;
+      }
+
+      #rotate-overlay .phone-icon::after {
+        content: '';
+        position: absolute;
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 20px;
+        height: 20px;
+        border: 2px solid #d4a24c;
+        border-radius: 50%;
+      }
+
+      @keyframes rotatePhone {
+        0%, 40% { transform: rotate(0deg); }
+        60%, 100% { transform: rotate(-90deg); }
+      }
+
+      #rotate-overlay h1 {
+        font-size: 28px;
+        color: #d4a24c;
+        margin: 0 0 12px 0;
+        font-weight: 900;
+        letter-spacing: 2px;
+      }
+
+      #rotate-overlay .subtitle {
+        font-size: 14px;
+        color: #e8f1f8;
+        margin: 0 0 30px 0;
+        font-style: italic;
+        opacity: 0.8;
+      }
+
+      #rotate-overlay .instruction {
+        font-size: 18px;
+        color: #ffffff;
+        margin: 0 0 10px 0;
+        font-weight: 600;
+      }
+
+      #rotate-overlay .detail {
+        font-size: 13px;
+        color: #8899b0;
+        margin: 0;
+        max-width: 280px;
+        line-height: 1.5;
+      }
+
+      #rotate-overlay .brand {
+        position: absolute;
+        bottom: 20px;
+        font-size: 11px;
+        color: #5a6b85;
+        letter-spacing: 3px;
+      }
+
+      /* Gold accent line */
+      #rotate-overlay .accent {
+        width: 60px;
+        height: 3px;
+        background: #d4a24c;
+        margin: 20px 0;
+      }
+
+      /* ============================================
+         MOBILE: Post-rotation notice banner
+         ============================================ */
+      #mobile-notice {
+        display: none;
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: 90%;
+        background: rgba(10, 31, 68, 0.95);
+        border: 1px solid #d4a24c;
+        border-radius: 8px;
+        padding: 14px 20px;
+        color: white;
+        z-index: 9998;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        font-size: 13px;
+        text-align: center;
+        pointer-events: auto;
+      }
+
+      #mobile-notice.visible {
+        display: block !important;
+        animation: slideDown 0.5s ease-out;
+      }
+
+      #mobile-notice strong {
+        color: #d4a24c;
+        letter-spacing: 1px;
+      }
+
+      #mobile-notice .close {
+        position: absolute;
+        top: 6px;
+        right: 10px;
+        cursor: pointer;
+        color: #8899b0;
+        font-size: 18px;
+        line-height: 1;
+        padding: 2px 6px;
+      }
+
+      #mobile-notice .close:hover {
+        color: #d4a24c;
+      }
+
+      @keyframes slideDown {
+        from { transform: translate(-50%, -100%); opacity: 0; }
+        to { transform: translate(-50%, 0); opacity: 1; }
+      }
+
+      @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; display: none; }
       }
     </style>
   </head>
   <body>
+    <!-- Mobile portrait: rotate prompt -->
+    <div id="rotate-overlay">
+      <div class="phone-icon"></div>
+      <h1>PIRATES</h1>
+      <div class="subtitle">Maritime Piracy Simulator</div>
+      <div class="accent"></div>
+      <div class="instruction">Please rotate your device</div>
+      <div class="detail">This simulation is optimized for landscape orientation. Turn your phone sideways to begin.</div>
+      <div class="brand">PIRATESIMULATOR.DEV</div>
+    </div>
+
+    <!-- Mobile: post-rotation notice -->
+    <div id="mobile-notice">
+      <span class="close" onclick="document.getElementById('mobile-notice').style.display='none'">&times;</span>
+      <strong>MOBILE MODE</strong><br>
+      Buttons and maps work. For number inputs, use desktop.
+    </div>
+
+    <!-- Unity container -->
     <div id="unity-container">
       <canvas id="unity-canvas" tabindex="-1"></canvas>
-      <div id="unity-loading-bar">
-        <div id="unity-progress-bar-empty">
-          <div id="unity-progress-bar-full"></div>
-        </div>
-      </div>
-      <div id="unity-warning"></div>
     </div>
+
+    <div id="unity-loading-bar">Loading...</div>
+
     <script>
-      var canvas = document.querySelector("#unity-canvas");
-      var loadingBar = document.querySelector("#unity-loading-bar");
-      var progressBarFull = document.querySelector("#unity-progress-bar-full");
-      var warningBanner = document.querySelector("#unity-warning");
+      // ====================================================
+      // RESPONSIVE SIZING + MOBILE ROTATE DETECTION
+      // ====================================================
 
-      var TARGET_ASPECT = 16 / 9;
+      const ASPECT_RATIO = 16 / 9;
+      const MOBILE_BREAKPOINT = 850; // px
 
-      function resizeCanvas() {
-        var windowWidth = window.innerWidth;
-        var windowHeight = window.innerHeight;
-        var windowAspect = windowWidth / windowHeight;
+      function isMobileDevice() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+               || window.innerWidth < MOBILE_BREAKPOINT;
+      }
 
-        var canvasWidth, canvasHeight;
+      function isPortrait() {
+        return window.innerHeight > window.innerWidth;
+      }
 
-        if (windowAspect > TARGET_ASPECT) {
-          canvasHeight = windowHeight;
-          canvasWidth = canvasHeight * TARGET_ASPECT;
+      function updateLayout() {
+        const container = document.getElementById('unity-container');
+        const rotateOverlay = document.getElementById('rotate-overlay');
+        const canvas = document.getElementById('unity-canvas');
+        const mobileNotice = document.getElementById('mobile-notice');
+
+        // Show rotate overlay on mobile + portrait
+        if (isMobileDevice() && isPortrait()) {
+          rotateOverlay.classList.add('visible');
+          container.style.display = 'none';
+          if (mobileNotice) {
+            mobileNotice.classList.remove('visible');
+            mobileNotice.style.display = 'none';
+          }
+          // Mark that we saw portrait - so when they rotate, notice should trigger
+          window._wasInPortrait = true;
+          return;
+        }
+
+        // Hide overlay, show sim
+        rotateOverlay.classList.remove('visible');
+        container.style.display = 'block';
+
+        // Show mobile notice after rotating from portrait OR on first landscape load
+        if (isMobileDevice() && mobileNotice && !window._mobileNoticeShown) {
+          mobileNotice.style.display = 'block';
+          mobileNotice.classList.add('visible');
+          window._mobileNoticeShown = true;
+          // Auto-hide after 7 seconds
+          setTimeout(() => {
+            if (mobileNotice) {
+              mobileNotice.style.opacity = '0';
+              mobileNotice.style.transition = 'opacity 0.8s';
+              setTimeout(() => { mobileNotice.style.display = 'none'; }, 800);
+            }
+          }, 7000);
+        }
+
+        // Calculate 16:9 container size that fits viewport
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const viewportRatio = vw / vh;
+
+        let containerW, containerH;
+
+        if (viewportRatio > ASPECT_RATIO) {
+          // Viewport wider than 16:9 - fit to height
+          containerH = vh;
+          containerW = vh * ASPECT_RATIO;
         } else {
-          canvasWidth = windowWidth;
-          canvasHeight = canvasWidth / TARGET_ASPECT;
+          // Viewport narrower than 16:9 - fit to width
+          containerW = vw;
+          containerH = vw / ASPECT_RATIO;
         }
 
-        canvas.style.width = canvasWidth + "px";
-        canvas.style.height = canvasHeight + "px";
+        container.style.width = containerW + 'px';
+        container.style.height = containerH + 'px';
       }
 
-      resizeCanvas();
-      window.addEventListener("resize", resizeCanvas);
+      // Initial layout
+      updateLayout();
 
-      function unityShowBanner(msg, type) {
-        function updateBannerVisibility() {
-          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
-        }
-        var div = document.createElement('div');
-        div.innerHTML = msg;
-        warningBanner.appendChild(div);
-        if (type == 'error') div.style = 'background: red; padding: 10px;';
-        else {
-          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
-          setTimeout(function() {
-            warningBanner.removeChild(div);
-            updateBannerVisibility();
-          }, 5000);
-        }
-        updateBannerVisibility();
-      }
+      // Update on resize AND orientation change
+      window.addEventListener('resize', updateLayout);
+      window.addEventListener('orientationchange', function() {
+        // Small delay for the browser to finish rotating
+        setTimeout(updateLayout, 150);
+      });
 
-      var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/WebGL.loader.js";
-      var config = {
+      // ====================================================
+      // UNITY LOADER
+      // ====================================================
+
+      const loadingBar = document.getElementById('unity-loading-bar');
+      loadingBar.classList.add('active');
+
+      const buildUrl = "Build";
+      const loaderUrl = buildUrl + "/WebGL.loader.js";
+      const config = {
         dataUrl: buildUrl + "/WebGL.data.unityweb",
         frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb",
         codeUrl: buildUrl + "/WebGL.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
-        companyName: "DefaultCompany",
-        productName: "Pirate Simulator",
+        companyName: "Team Pirates",
+        productName: "PIRATES",
         productVersion: "1.0",
-        showBanner: unityShowBanner,
       };
 
-      loadingBar.style.display = "block";
-
-      var script = document.createElement("script");
+      const canvas = document.getElementById('unity-canvas');
+      const script = document.createElement('script');
       script.src = loaderUrl;
       script.onload = () => {
         createUnityInstance(canvas, config, (progress) => {
-          progressBarFull.style.width = 100 * progress + "%";
+          loadingBar.textContent = 'Loading ' + Math.round(progress * 100) + '%';
         }).then((unityInstance) => {
-          loadingBar.style.display = "none";
-          resizeCanvas();
+          loadingBar.classList.remove('active');
+          // Trigger one more layout update after Unity loads
+          updateLayout();
         }).catch((message) => {
           alert(message);
         });
       };
-
       document.body.appendChild(script);
     </script>
   </body>
