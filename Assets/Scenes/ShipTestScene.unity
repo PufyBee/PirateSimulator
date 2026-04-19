@@ -3421,6 +3421,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   helpPanelObject: {fileID: 0}
   closeButton: {fileID: 0}
+  pirateFont: {fileID: 11400000, guid: fa008aa4321b2ea40b56915eae15d237, type: 2}
+  helpButton: {fileID: 21300000, guid: 8987119be88043841a7654d19870871c, type: 3}
   helpKey: 282
   closeOnClickOutside: 1
   showPersistentHelpButton: 1

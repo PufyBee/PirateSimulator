@@ -21,6 +21,10 @@ public class HelpPanel : MonoBehaviour
     [Header("=== CUSTOM UI (Optional) ===")]
     public GameObject helpPanelObject;
     public Button closeButton;
+    
+    public TMP_FontAsset pirateFont;
+
+    public Sprite helpButton;
 
     [Header("=== SETTINGS ===")]
     public KeyCode helpKey = KeyCode.F1;
@@ -444,13 +448,14 @@ public class HelpPanel : MonoBehaviour
         btnRect.sizeDelta = new Vector2(45, 45);
 
         Image btnImg = persistentButtonObject.AddComponent<Image>();
-        btnImg.color = new Color(0.2f, 0.5f, 0.8f, 0.9f);
+        btnImg.sprite = helpButton;
+        //btnImg.color = new Color(0.2f, 0.5f, 0.8f, 0.9f);
 
         Button helpBtn = persistentButtonObject.AddComponent<Button>();
         helpBtn.onClick.AddListener(Toggle);
 
         ColorBlock colors = helpBtn.colors;
-        colors.normalColor = new Color(0.2f, 0.5f, 0.8f, 0.9f);
+        colors.normalColor = new Color(0.8f, 0.8f, 0.8f, 0.9f);
         colors.highlightedColor = new Color(0.3f, 0.6f, 0.9f, 1f);
         colors.pressedColor = new Color(0.15f, 0.4f, 0.7f, 1f);
         helpBtn.colors = colors;
@@ -470,9 +475,10 @@ public class HelpPanel : MonoBehaviour
         btnTextRect.offsetMax = Vector2.zero;
 
         TextMeshProUGUI btnText = btnTextObj.AddComponent<TextMeshProUGUI>();
-        btnText.text = "?";
-        btnText.fontSize = 26;
-        btnText.fontStyle = FontStyles.Bold;
+        btnText.text = "F1";
+        btnText.font = pirateFont;
+        btnText.fontSize = 15;
+        //btnText.fontStyle = FontStyles.Bold;
         btnText.color = Color.white;
         btnText.alignment = TextAlignmentOptions.Center;
     }
