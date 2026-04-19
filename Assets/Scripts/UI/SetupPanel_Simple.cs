@@ -44,12 +44,26 @@ public class SetupPanel : MonoBehaviour
         if (randomizeButton)
             randomizeButton.onClick.AddListener(OnRandomizeSeed);
 
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayMusic(AudioClipNames.Music.Setup, 0f);
+            AudioManager.Instance.PlayAmbient(AudioClipNames.Ambient.Harbor);
+        }
         // Set default values
         SetDefaults();
 
         // Show setup panel, hide sidebar
         if (setupPanel) setupPanel.SetActive(true);
         if (sidebar) sidebar.SetActive(false);
+        if (AudioManager.Instance != null)
+        {
+            Debug.Log("Playing Setup music...");
+            AudioManager.Instance.PlayMusic("Setup", 0f);
+        }
+        else
+        {
+            Debug.LogError("AudioManager.Instance is NULL!");
+        }
     }
 
     void SetDefaults()
@@ -68,12 +82,14 @@ public class SetupPanel : MonoBehaviour
 
     void OnRandomizeSeed()
     {
+        AudioManager.Instance?.PlaySFX(AudioClipNames.SFX.ButtonClick);
         if (seedInput)
             seedInput.text = Random.Range(10000, 99999).ToString();
     }
 
     void OnStartSimulation()
     {
+        AudioManager.Instance?.PlaySFX(AudioClipNames.SFX.ButtonClick);
         // Parse all inputs
         int merchantCount = ParseInt(merchantCountInput, 2);
         int pirateCount = ParseInt(pirateCountInput, 1);
@@ -138,6 +154,16 @@ public class SetupPanel : MonoBehaviour
     /// </summary>
     public void ShowSetup()
     {
+
+        AudioManager.Instance?.StopMusic(0.5f);
+        AudioManager.Instance?.PlayMusic(AudioClipNames.Music.Setup, 1f);
+        AudioManager.Instance?.PlayAmbient(AudioClipNames.Ambient.Harbor);
+
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayMusic("Setup", 0.5f);
+        }
+
         if (setupPanel) setupPanel.SetActive(true);
         if (sidebar) sidebar.SetActive(false);
     }

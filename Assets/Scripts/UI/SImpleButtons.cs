@@ -281,6 +281,11 @@ public class SimpleButtons : MonoBehaviour
         ApplySettingsFromInputs();
         ApplyEnvironmentSettings();
 
+        AudioManager.Instance?.PlaySFX(AudioClipNames.SFX.StartSim); 
+        AudioManager.Instance?.StopMusic(0.5f); 
+        AudioManager.Instance?.PlayMusic(AudioClipNames.Music.Simulation, 1f);
+        AudioManager.Instance?.PlaySFX("ButtonClick");
+
         if (spawnZoneConfigurator == null)
             spawnZoneConfigurator = FindObjectOfType<SpawnZoneConfigurator>();
         if (spawnZoneConfigurator != null)
@@ -329,6 +334,8 @@ public class SimpleButtons : MonoBehaviour
     {
         if (engine == null) return;
 
+        AudioManager.Instance?.PlaySFX("ButtonClick");
+
         if (isPaused)
         {
             engine.StartRun();
@@ -346,6 +353,8 @@ public class SimpleButtons : MonoBehaviour
 
     void OnStepClicked()
     {
+        AudioManager.Instance?.PlaySFX("ButtonClick");
+
         if (engine != null && engine.GetTickCount() == 0)
         {
             ApplySettingsFromInputs();
@@ -374,6 +383,8 @@ public class SimpleButtons : MonoBehaviour
 
     void OnResetClicked()
     {
+        AudioManager.Instance?.PlaySFX("ButtonClick");
+
         bool needsWarning = engine != null && engine.GetTickCount() > 0;
 
         if (needsWarning && confirmationDialog != null)
@@ -392,6 +403,9 @@ public class SimpleButtons : MonoBehaviour
 
     void DoReset()
     {
+        AudioManager.Instance?.PlaySFX(AudioClipNames.SFX.ResetSim);
+        AudioManager.Instance?.StopMusic(0.5f);
+        AudioManager.Instance?.PlayMusic(AudioClipNames.Music.Setup, 1f);
         if (engine != null && engine.GetTickCount() > 0)
         {
             if (EndOfRunPanel.Instance != null)
@@ -454,6 +468,8 @@ public class SimpleButtons : MonoBehaviour
 
     void OnTimeOfDaySelected(int index)
     {
+        AudioManager.Instance?.PlaySFX("ButtonClick");
+
         selectedTimeOfDay = index;
         if (EnvironmentSettings.Instance != null)
             EnvironmentSettings.Instance.SetTimeOfDay(index);
@@ -462,6 +478,8 @@ public class SimpleButtons : MonoBehaviour
 
     void OnWeatherSelected(int index)
     {
+        AudioManager.Instance?.PlaySFX("ButtonClick");
+
         selectedWeather = index;
         if (EnvironmentSettings.Instance != null)
             EnvironmentSettings.Instance.SetWeather(index);
