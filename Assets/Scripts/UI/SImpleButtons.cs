@@ -208,23 +208,23 @@ public class SimpleButtons : MonoBehaviour
         UpdateConditionBadge();
 
         // Keyboard support
-        if (Input.GetKeyDown(KeyCode.Space)) {
-            OnPauseClicked();
+        if (engine != null && engine.GetTickCount() > 0){
+            if (Input.GetKeyDown(KeyCode.Space)) {
+                OnPauseClicked();
+            }
+            if (Input.GetKeyDown(KeyCode.RightArrow)) {
+                OnStepClicked();
+            }
+            if (Input.GetKeyDown(KeyCode.R)) {
+                DoReset();
+            }
+            if (Input.GetKeyDown(KeyCode.UpArrow)) {
+                OnSpeedUp();
+            }
+            if (Input.GetKeyDown(KeyCode.DownArrow)) {
+                OnSpeedDown();
+            }        
         }
-        if (Input.GetKeyDown(KeyCode.RightArrow)) {
-            OnStepClicked();
-        }
-        if (Input.GetKeyDown(KeyCode.R)) {
-            DoReset();
-        }
-        if (Input.GetKeyDown(KeyCode.UpArrow)) {
-            OnSpeedUp();
-        }
-        if (Input.GetKeyDown(KeyCode.DownArrow)) {
-            OnSpeedDown();
-        }        
-
-
 
         // Continuously enforce wake trail toggle on all ships (catches newly spawned ones)
         if (!wakeTrailsEnabled)
