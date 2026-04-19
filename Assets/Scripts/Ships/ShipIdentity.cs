@@ -110,7 +110,6 @@ public class ShipIdentity : MonoBehaviour
         {
             case ShipType.Cargo:
                 GenerateMerchantIdentity(merchantCountriesLeft, merchantCountriesRight);
-                // GenerateMerchantIdentity(merchantCountries);
                 GenerateMerchantRegionalData();
                 break;
             case ShipType.Pirate:
@@ -289,7 +288,7 @@ public class ShipIdentity : MonoBehaviour
         }
 
         float x = shipController.Data.position.x;
-        if (x > -200f) {
+        if (x >= -200f) {
             return 1; // right
         }
         if (x < -200f) {
@@ -303,10 +302,14 @@ public class ShipIdentity : MonoBehaviour
     {
         string prefix = MerchantPrefixes[rng.Next(MerchantPrefixes.Length)];
         string name = ShipNames[rng.Next(ShipNames.Length)];
+
+        // Prevent infinite loop very-edge case
+        int i = 0;
         
-        while (direction == -1 && string.IsNullOrEmpty(originCountry))
+        while (direction == -1 && string.IsNullOrEmpty(originCountry) && i < 5)
         {
             direction = GetDirection();
+            i++;
         }
         if (direction == 0 && string.IsNullOrEmpty(originCountry)) {
             originCountry = countriesLeft[rng.Next(countriesLeft.Length)];
