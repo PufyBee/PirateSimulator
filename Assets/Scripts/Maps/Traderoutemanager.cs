@@ -129,6 +129,7 @@ public class TradeRouteManager : MonoBehaviour
 
         currentMapIndex = index;
         currentMapRoutes = mapRouteData[index];
+        currentMapRoutes.mapName = MapManager.Instance.GetCurrentMapName();
 
         if (currentMapRoutes != null)
         {

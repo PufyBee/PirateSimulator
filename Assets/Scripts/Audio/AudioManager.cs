@@ -82,6 +82,7 @@ public class AudioManager : MonoBehaviour
     void Start()
     {
         LoadVolumePreferences();
+        PlayMusic("Setup", 0f);
     }
 
     void InitializeAudioSystem()

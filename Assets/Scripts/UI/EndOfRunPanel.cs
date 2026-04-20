@@ -81,6 +81,8 @@ public class EndOfRunPanel : MonoBehaviour
     /// </summary>
     public void Show()
     {
+        AudioManager.Instance?.PlaySFX(AudioClipNames.SFX.ResetSim);
+
         // Gather stats from SimulationEngine
         GatherStats();
         CSVExporter.CacheFinalStats(); 
@@ -218,12 +220,18 @@ public class EndOfRunPanel : MonoBehaviour
 
     void OnNewRunClicked()
     {
+        AudioManager.Instance?.PlaySFX(AudioClipNames.SFX.ButtonClick);
+
         Hide();
         OnNewRun?.Invoke();
+
+        AudioManager.Instance?.StopMusic(0.5f);
+        AudioManager.Instance?.PlayMusic("Setup", 1f);
     }
 
     void OnCloseClicked()
     {
+        AudioManager.Instance?.PlaySFX(AudioClipNames.SFX.ButtonClick);
         Hide();
         OnClose?.Invoke();
     }

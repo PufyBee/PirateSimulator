@@ -42,23 +42,29 @@ public class ShipIdentity : MonoBehaviour
         "Phoenix", "Titan", "Aurora", "Neptune", "Atlas"
     };
 
+    // Direction; for use in determining origin/destination countries
+    private int direction = -1;
+
     // Countries by region and role
     public static class Regions
     {
         // Strait of Malacca
-        public static readonly string[] MalaccaMerchants = { "Singapore", "Malaysia", "Indonesia", "China", "Japan", "South Korea" };
+        public static readonly string[] MalaccaMerchantsLeft = { "India", "India", "India", "India", "Sri Lanka", "Sri Lanka", "United Arab Emirates", "United Arab Emirates", "Saudi Arabia", "Saudi Arabia", "Qatar", "Kuwait", "Oman", "Pakistan", "Bangladesh", "Egypt", "Egypt", "Kenya", "Tanzania", "South Africa", "Yemen", "Iran", "Iraq", "Bahrain", "Djibouti", "Mozambique", "Somalia" };
+        public static readonly string[] MalaccaMerchantsRight = { "China", "China", "China", "China", "Japan", "Japan", "Japan", "South Korea", "South Korea", "Taiwan", "Taiwan", "Philippines", "Philippines", "Australia", "Australia", "United States", "United States", "Canada", "Russia", "Hong Kong", "Hong Kong", "Brunei", "New Zealand", "South Korea", "Japan" };
         public static readonly string[] MalaccaPirates = { "Indonesian Waters", "Riau Islands", "Batam" };
         public static readonly string[] MalaccaNavy = { "Singapore", "Malaysia", "Indonesia" };
         public static readonly string[] MalaccaNavyNames = { "RSN", "RMN", "KRI" }; // Republic of Singapore Navy, Royal Malaysian Navy, Indonesian Navy
 
         // Gulf of Aden
-        public static readonly string[] AdenMerchants = { "Yemen", "Djibouti", "Saudi Arabia", "Oman", "UAE", "Egypt" };
+        public static readonly string[] AdenMerchantsLeft = { "United Kingdom", "United Kingdom", "Netherlands", "Netherlands", "Germany", "Germany", "France", "France", "Italy", "Italy", "Spain", "Spain", "Belgium", "Greece", "Turkey", "Egypt", "Egypt", "Egypt", "Turkey", "Greece", "France", "Germany", "Italy", "United Kingdom", "Spain", "Belgium", "Russia", "United Kingdom","United Kingdom","Germany","Netherlands","Greece","United States","United States","United States","France","France","Spain","Spain","Turkey","Turkey","Belgium","Norway"};
+        public static readonly string[] AdenMerchantsRight = { "China", "China", "China", "China", "Japan", "Japan", "South Korea", "South Korea", "India", "India", "Singapore", "Malaysia", "Indonesia", "Philippines", "Taiwan", "Bangladesh", "Sri Lanka", "Australia", "Australia", "Russia", "China","China","China","China","China","China","India","India","India","India","India","Singapore","Singapore","Singapore","Singapore","South Korea","South Korea","Japan","Japan","Indonesia","Indonesia","Malaysia","Malaysia","Iran" };
         public static readonly string[] AdenPirates = { "Somali Waters", "Puntland Coast", "Mogadishu" };
         public static readonly string[] AdenNavy = { "Djibouti", "Yemen", "International Coalition" };
         public static readonly string[] AdenNavyNames = { "Combined Task Force", "EUNAVFOR", "Naval Patrol" };
 
         // Gulf of Guinea
-        public static readonly string[] GuineaMerchants = { "Nigeria", "Cameroon", "Gabon", "Ghana", "Equatorial Guinea", "São Tomé" };
+        public static readonly string[] GuineaMerchantsLeft = { "Ghana", "Ghana", "Ivory Coast", "Ivory Coast", "South Africa", "South Africa", "Brazil", "Brazil", "United States", "United States", "United Kingdom", "France", "Netherlands", "Spain", "Brazil","Brazil","Brazil","Brazil","Brazil","United States","United States","United States","United States","United Kingdom","United Kingdom","United Kingdom","Netherlands","Netherlands","Netherlands","France","France","France","Spain","Spain","Portugal","Portugal","Germany","Germany", "Ivory Coast", "Morocco", "Morocco" };
+        public static readonly string[] GuineaMerchantsRight = { "Angola","Angola","South Africa","South Africa", "South Africa", "South Africa", "Mozambique", "Madagascar", "Madagascar", "Namibia", "Kenya", "Kenya", "Tanzania", "China", "China", "China", "Japan", "South Korea", "Indonesia", "United Arab Emirates" };
         public static readonly string[] GuineaPirates = { "Nigerian Waters", "Niger Delta", "Cameroon Coast" };
         public static readonly string[] GuineaNavy = { "Nigeria", "Cameroon", "Ghana" };
         public static readonly string[] GuineaNavyNames = { "NNS", "Cameroon Navy", "Ghana Navy" }; // Nigerian Navy Ship
@@ -66,9 +72,9 @@ public class ShipIdentity : MonoBehaviour
 
     public enum MapRegion
     {
-        StraitOfMalacca,
-        GulfOfAden,
-        GulfOfGuinea
+        GulfOfGuinea = 0,
+        StraitOfMalacca = 1,
+        GulfOfAden = 2
     }
 
     // Current active region (set by map selection)
@@ -96,14 +102,14 @@ public class ShipIdentity : MonoBehaviour
         ShipType type = shipController.Data.type;
 
         // Get appropriate country lists for current region
-        string[] merchantCountries, pirateOrigins, navyCountries, navyPrefixes;
-        GetRegionData(out merchantCountries, out pirateOrigins, out navyCountries, out navyPrefixes);
+        string[] merchantCountriesLeft, merchantCountriesRight, pirateOrigins, navyCountries, navyPrefixes;
+        GetRegionData(out merchantCountriesLeft, out merchantCountriesRight, out pirateOrigins, out navyCountries, out navyPrefixes);
 
         // Generate identity based on ship type
         switch (type)
         {
             case ShipType.Cargo:
-                GenerateMerchantIdentity(merchantCountries);
+                GenerateMerchantIdentity(merchantCountriesLeft, merchantCountriesRight);
                 GenerateMerchantRegionalData();
                 break;
             case ShipType.Pirate:
@@ -117,25 +123,28 @@ public class ShipIdentity : MonoBehaviour
         }
     }
 
-    void GetRegionData(out string[] merchants, out string[] pirates, out string[] navy, out string[] navyNames)
+    void GetRegionData(out string[] merchantsLeft, out string[] merchantsRight, out string[] pirates, out string[] navy, out string[] navyNames)
     {
         switch (CurrentRegion)
         {
             case MapRegion.GulfOfAden:
-                merchants = Regions.AdenMerchants;
+                merchantsLeft = Regions.AdenMerchantsLeft;
+                merchantsRight = Regions.AdenMerchantsRight;
                 pirates = Regions.AdenPirates;
                 navy = Regions.AdenNavy;
                 navyNames = Regions.AdenNavyNames;
                 break;
             case MapRegion.GulfOfGuinea:
-                merchants = Regions.GuineaMerchants;
+                merchantsLeft = Regions.GuineaMerchantsLeft;
+                merchantsRight = Regions.GuineaMerchantsRight;
                 pirates = Regions.GuineaPirates;
                 navy = Regions.GuineaNavy;
                 navyNames = Regions.GuineaNavyNames;
                 break;
             case MapRegion.StraitOfMalacca:
             default:
-                merchants = Regions.MalaccaMerchants;
+                merchantsLeft = Regions.MalaccaMerchantsLeft;
+                merchantsRight = Regions.MalaccaMerchantsRight;
                 pirates = Regions.MalaccaPirates;
                 navy = Regions.MalaccaNavy;
                 navyNames = Regions.MalaccaNavyNames;
@@ -144,7 +153,7 @@ public class ShipIdentity : MonoBehaviour
     }
 
     private void GenerateMerchantRegionalData()
-    {
+    {        
         switch (CurrentRegion)
         {
             case MapRegion.StraitOfMalacca:
@@ -163,6 +172,7 @@ public class ShipIdentity : MonoBehaviour
                 break;
         }
     }
+
     private void GeneratePirateRegionalData()
     {
         switch (CurrentRegion)
@@ -217,6 +227,7 @@ public class ShipIdentity : MonoBehaviour
                 break;
         }
     }
+    
     public string GetDetailedRouteString()
     {
         if (shipController == null || shipController.Data == null) return "";
@@ -269,16 +280,45 @@ public class ShipIdentity : MonoBehaviour
             _ => "Maritime security"
         };
     }
-    void GenerateMerchantIdentity(string[] countries)
+
+    public int GetDirection()
+    {
+        if (shipController == null || shipController.Data == null) {
+            return -1;
+        }
+
+        float x = shipController.Data.position.x;
+        if (x >= -200f) {
+            return 1; // right
+        }
+        if (x < -200f) {
+            return 0; // left
+        }
+
+        return -1;
+    }
+
+    void GenerateMerchantIdentity(string[] countriesLeft, string[] countriesRight)
     {
         string prefix = MerchantPrefixes[rng.Next(MerchantPrefixes.Length)];
         string name = ShipNames[rng.Next(ShipNames.Length)];
-        originCountry = countries[rng.Next(countries.Length)];
+
+        // Prevent infinite loop very-edge case
+        int i = 0;
         
-        // Pick a different destination
-        do {
-            destinationCountry = countries[rng.Next(countries.Length)];
-        } while (destinationCountry == originCountry && countries.Length > 1);
+        while (direction == -1 && string.IsNullOrEmpty(originCountry) && i < 5)
+        {
+            direction = GetDirection();
+            i++;
+        }
+        if (direction == 0 && string.IsNullOrEmpty(originCountry)) {
+            originCountry = countriesLeft[rng.Next(countriesLeft.Length)];
+            destinationCountry = countriesRight[rng.Next(countriesRight.Length)];
+        }
+        else if (direction == 1 && string.IsNullOrEmpty(originCountry)) {
+            originCountry = countriesRight[rng.Next(countriesRight.Length)];
+            destinationCountry = countriesLeft[rng.Next(countriesLeft.Length)];
+        }
 
         shipName = $"{prefix} {name}";
         fullTitle = $"{shipName} ({originCountry})";

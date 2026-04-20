@@ -1578,7 +1578,7 @@ MonoBehaviour:
   startingAreaCenter: {x: -8, y: 0}
   startingSpacing: 1.5
   mapColorSampler: {fileID: 0}
-  shipSpawner: {fileID: 0}
+  shipSpawner: {fileID: 239971860}
   showDebugLogs: 0
 --- !u!4 &315903822
 Transform:
@@ -3421,6 +3421,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   helpPanelObject: {fileID: 0}
   closeButton: {fileID: 0}
+  pirateFont: {fileID: 11400000, guid: fa008aa4321b2ea40b56915eae15d237, type: 2}
+  helpButton: {fileID: 21300000, guid: 8987119be88043841a7654d19870871c, type: 3}
   helpKey: 282
   closeOnClickOutside: 1
   showPersistentHelpButton: 1
@@ -5015,6 +5017,129 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1294043240}
   m_CullTransparentMesh: 1
+--- !u!1 &1294355591
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1294355593}
+  - component: {fileID: 1294355592}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1294355592
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1294355591}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7651b11325ccfeb40ab604da07d8703d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  audioMixer: {fileID: 0}
+  sfxVolumeParameter: SFXVolume
+  musicVolumeParameter: MusicVolume
+  masterVolumeParameter: MasterVolume
+  musicSource: {fileID: 0}
+  musicSource2: {fileID: 0}
+  ambientSource: {fileID: 0}
+  sfxPoolSize: 10
+  sfxSourcePrefab: {fileID: 0}
+  defaultMasterVolume: 0.8
+  defaultSFXVolume: 0.8
+  defaultMusicVolume: 0.6
+  soundEffects:
+  - name: ButtonClick
+    clip: {fileID: 8300000, guid: 74ad74a604b86714683a00d198f801ea, type: 3}
+    volume: 0.15
+    pitchMin: 1
+    pitchMax: 1
+    loop: 0
+    spatialBlend: 0
+  - name: StartSim
+    clip: {fileID: 8300000, guid: cfe2fd304618b3b46bad0529d45d121f, type: 3}
+    volume: 1
+    pitchMin: 1
+    pitchMax: 1
+    loop: 0
+    spatialBlend: 0
+  - name: ResetSim
+    clip: {fileID: 8300000, guid: f354da2d6c894394fbdc17d5d9a6c47d, type: 3}
+    volume: 0.012
+    pitchMin: 1
+    pitchMax: 1
+    loop: 0
+    spatialBlend: 0
+  - name: 
+    clip: {fileID: 0}
+    volume: 0
+    pitchMin: 0
+    pitchMax: 0
+    loop: 0
+    spatialBlend: 0
+  - name: 
+    clip: {fileID: 0}
+    volume: 0
+    pitchMin: 0
+    pitchMax: 0
+    loop: 0
+    spatialBlend: 0
+  - name: 
+    clip: {fileID: 0}
+    volume: 0
+    pitchMin: 0
+    pitchMax: 0
+    loop: 0
+    spatialBlend: 0
+  - name: 
+    clip: {fileID: 0}
+    volume: 0
+    pitchMin: 0
+    pitchMax: 0
+    loop: 0
+    spatialBlend: 0
+  musicTracks:
+  - name: Setup
+    clip: {fileID: 8300000, guid: 67e0b8d993a78d54bbc2676fd3d3abcc, type: 3}
+    volume: 0.8
+    pitchMin: 1
+    pitchMax: 1
+    loop: 1
+    spatialBlend: 0
+  - name: Simulation
+    clip: {fileID: 8300000, guid: 53a413e21d1f5b8488a6fcf52c009ba4, type: 3}
+    volume: 0.8
+    pitchMin: 1
+    pitchMax: 1
+    loop: 1
+    spatialBlend: 0
+  ambientSounds: []
+  debugMode: 1
+--- !u!4 &1294355593
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1294355591}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -218.39098, y: -74.49329, z: -5.623339}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1318005631
 GameObject:
   m_ObjectHideFlags: 0
@@ -8891,6 +9016,7 @@ SceneRoots:
   - {fileID: 1868357141}
   - {fileID: 768946784}
   - {fileID: 1264876953}
+  - {fileID: 1294355593}
   - {fileID: 1975225898}
   - {fileID: 887750609}
   - {fileID: 1187766588}
