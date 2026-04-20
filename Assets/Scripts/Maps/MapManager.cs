@@ -12,14 +12,14 @@ public class MapManager : MonoBehaviour
     public static MapManager Instance { get; private set; }
 
     [Header("=== MAP SPRITES ===")]
-    [Tooltip("Assign in order: Malacca, Aden, Guinea")]
+    [Tooltip("Assign in order: Guinea, Malacca, Aden")]
     public Sprite[] mapSprites;
 
     [Header("=== MAP NAMES ===")]
     public string[] mapNames = { 
+        "Gulf of Guinea", 
         "Strait of Malacca", 
-        "Gulf of Aden", 
-        "Gulf of Guinea" 
+        "Gulf of Aden" 
     };
 
     [Header("=== REFERENCES ===")]
@@ -32,9 +32,9 @@ public class MapManager : MonoBehaviour
 
     public enum MapRegion
     {
-        StraitOfMalacca = 0,
-        GulfOfAden = 1,
-        GulfOfGuinea = 2
+        GulfOfGuinea = 0,
+        StraitOfMalacca = 1,
+        GulfOfAden = 2
     }
 
     void Awake()
@@ -94,7 +94,7 @@ public class MapManager : MonoBehaviour
         if (mapRenderer != null)
         {
             mapRenderer.sprite = mapSprites[index];
-            Debug.Log($"MapManager: Loaded map '{mapNames[index]}'");
+            Debug.Log($"MapManager: Loaded map '{mapNames[index]}' at index '{index}'");
         }
         else
         {

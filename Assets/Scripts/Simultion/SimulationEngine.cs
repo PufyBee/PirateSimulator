@@ -67,6 +67,10 @@ public class SimulationEngine : MonoBehaviour
     private int ticksSinceLastPirate = 0;
     private int ticksSinceLastSecurity = 0;
 
+    private float originalMerchantSpeed;
+    private float originalPirateSpeed;
+    private float originalSecuritySpeed;
+    private bool hasOriginalSpeeds = false;
     // Statistics
     private int merchantsExited = 0;
     private int merchantsCaptured = 0;
@@ -258,12 +262,20 @@ public class SimulationEngine : MonoBehaviour
         Debug.Log($"Adjusted spawn intervals - Merchant: {adjustedMerchantInterval}, Pirate: {adjustedPirateInterval}, Security: {adjustedSecurityInterval}");
 
         if (shipSpawner != null && EnvironmentSettings.Instance != null)
+    {
+        if (!hasOriginalSpeeds)
         {
-            float speedMult = EnvironmentSettings.Instance.SpeedMultiplier;
-            shipSpawner.merchantSpeed *= speedMult;
-            shipSpawner.pirateSpeed *= speedMult;
-            shipSpawner.securitySpeed *= speedMult;
+            originalMerchantSpeed = shipSpawner.merchantSpeed;
+            originalPirateSpeed = shipSpawner.pirateSpeed;
+            originalSecuritySpeed = shipSpawner.securitySpeed;
+            hasOriginalSpeeds = true;
         }
+
+        float speedMult = EnvironmentSettings.Instance.SpeedMultiplier;
+        shipSpawner.merchantSpeed = originalMerchantSpeed * speedMult;
+        shipSpawner.pirateSpeed = originalPirateSpeed * speedMult;
+        shipSpawner.securitySpeed = originalSecuritySpeed * speedMult;
+    }
     }
 
     // ===== PUBLIC GETTERS =====
