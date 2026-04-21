@@ -88,7 +88,7 @@ public class RuntimeStatsOverlay : MonoBehaviour
 
         RectTransform panelRect = panelObject.AddComponent<RectTransform>();
         SetAnchorPosition(panelRect);
-        panelRect.sizeDelta = new Vector2(200, 290);
+        panelRect.sizeDelta = new Vector2(220, 380);
 
         Image panelBg = panelObject.AddComponent<Image>();
         panelBg.color = backgroundColor;
@@ -184,15 +184,26 @@ public class RuntimeStatsOverlay : MonoBehaviour
             conditions = EnvironmentSettings.Instance.GetConditionsSummary();
             float detMult = EnvironmentSettings.Instance.DetectionMultiplier;
             float spdMult = EnvironmentSettings.Instance.SpeedMultiplier;
-            if (detMult != 1f || spdMult != 1f)
+            
             {
-                effects = $"\n<size=12><color=#888888>Detection: {detMult:P0} | Speed: {spdMult:P0}</color></size>";
+                effects = $"\n<color=#AA8855><b>CONDITION EFFECTS:</b></color>" +
+                          $"\n<color=#DDDDDD>Detection: {detMult:P0}</color>" +
+                          $"\n<color=#DDDDDD>Speed: {spdMult:P0}</color>";
+    
+                float pirateMult = EnvironmentSettings.Instance.PirateSpawnMultiplier;
+             float merchantMult = EnvironmentSettings.Instance.MerchantSpawnMultiplier;
+             if (pirateMult != 1f)
+                 effects += $"\n<color=#FF6666>Pirate Activity: {pirateMult:P0}</color>";
+             if (merchantMult != 1f)
+                  effects += $"\n<color=#66FF66>Merchant Traffic: {merchantMult:P0}</color>";
             }
+
         }
 
         int ticks = engine.GetTickCount();
         float simHours = engine.GetSimulatedHours();
-        int simDays = Mathf.FloorToInt(simHours / 24f);
+        int displayTicks = Mathf.Max(0, ticks - 1);
+        int simDays = displayTicks / 96;
         int displayHours = Mathf.FloorToInt(simHours % 24f);
 
         statsText.text = 

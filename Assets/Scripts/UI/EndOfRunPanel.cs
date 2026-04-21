@@ -3,60 +3,41 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// End of Run Panel - Shows simulation results summary
+/// END OF RUN PANEL - Comprehensive simulation results display
 /// 
-/// Displays:
-/// - Final statistics (escaped, captured, defeated)
-/// - Protection rate with grade
-/// - Conditions summary
-/// - Run duration
-/// 
-/// SETUP:
-/// 1. Add this to a GameObject in your scene
-/// 2. Call Show() when simulation ends or reset is clicked
-/// 3. Connect the OnClose event to return to setup
+/// Shows all tracked and derived statistics when a simulation ends.
+/// Self-creating UI with scrollable results panel.
 /// </summary>
 public class EndOfRunPanel : MonoBehaviour
 {
     public static EndOfRunPanel Instance { get; private set; }
 
-    [Header("=== CUSTOM UI (Optional) ===")]
-    public GameObject panelObject;
-    public TextMeshProUGUI titleText;
-    public TextMeshProUGUI gradeText;
-    public TextMeshProUGUI protectionRateText;
-    public TextMeshProUGUI merchantsEscapedText;
-    public TextMeshProUGUI merchantsCapturedText;
-    public TextMeshProUGUI piratesDefeatedText;
-    public TextMeshProUGUI conditionsText;
-    public TextMeshProUGUI durationText;
-    public Button newRunButton;
-    public Button closeButton;
-
-    [Header("=== GRADE COLORS ===")]
-    public Color gradeA = new Color(0.2f, 0.9f, 0.3f);   // Green
-    public Color gradeB = new Color(0.6f, 0.9f, 0.2f);   // Yellow-green
-    public Color gradeC = new Color(0.9f, 0.9f, 0.2f);   // Yellow
-    public Color gradeD = new Color(0.9f, 0.6f, 0.2f);   // Orange
-    public Color gradeF = new Color(0.9f, 0.2f, 0.2f);   // Red
+    [Header("=== EXPORT (Optional) ===")]
+    public Button exportButton;
 
     [Header("=== EVENTS ===")]
     public UnityEngine.Events.UnityEvent OnNewRun;
     public UnityEngine.Events.UnityEvent OnClose;
 
-    [Header("=== EXPORT (Optional) ===")]
-    public Button exportButton;
-
     // Internal
     private GameObject canvasObject;
+    private GameObject panelObject;
+    private TMP_Text resultsText;
     private bool isShowing = false;
 
-    // Cached results
+    // Cached results for CSV export
     private int lastEscaped;
     private int lastCaptured;
     private int lastDefeated;
     private int lastTicks;
-    private float lastProtectionRate;
+    private int lastTotalMerchantsSpawned;
+    private int lastTotalPiratesSpawned;
+    private int lastTotalSecuritySpawned;
+    private int lastPeakActiveShips;
+    private int lastPeakActivePirates;
+    private int lastPeakActiveMerchants;
+    private float lastSimHours;
+    private float lastSimDays;
 
     void Awake()
     {
@@ -65,57 +46,32 @@ public class EndOfRunPanel : MonoBehaviour
 
     void Start()
     {
-        if (panelObject == null)
-        {
-            CreateEndPanel();
-        }
-
+        CreateEndPanel();
         if (canvasObject != null)
             canvasObject.SetActive(false);
-        else if (panelObject != null)
-            panelObject.SetActive(false);
     }
 
-    /// <summary>
-    /// Show the end panel with current simulation results
-    /// </summary>
     public void Show()
     {
-        AudioManager.Instance?.PlaySFX(AudioClipNames.SFX.ResetSim);
-
-        // Gather stats from SimulationEngine
         GatherStats();
-        CSVExporter.CacheFinalStats(); 
         UpdateDisplay();
 
         if (canvasObject != null)
             canvasObject.SetActive(true);
-        else if (panelObject != null)
-            panelObject.SetActive(true);
 
         isShowing = true;
     }
 
-    /// <summary>
-    /// Show with manually provided stats
-    /// </summary>
     public void Show(int escaped, int captured, int defeated, int ticks)
     {
         lastEscaped = escaped;
         lastCaptured = captured;
         lastDefeated = defeated;
         lastTicks = ticks;
-        
-        // Calculate protection rate
-        int totalMerchants = escaped + captured;
-        lastProtectionRate = totalMerchants > 0 ? (float)escaped / totalMerchants * 100f : 100f;
-
         UpdateDisplay();
 
         if (canvasObject != null)
             canvasObject.SetActive(true);
-        else if (panelObject != null)
-            panelObject.SetActive(true);
 
         isShowing = true;
     }
@@ -124,23 +80,27 @@ public class EndOfRunPanel : MonoBehaviour
     {
         if (canvasObject != null)
             canvasObject.SetActive(false);
-        else if (panelObject != null)
-            panelObject.SetActive(false);
-
         isShowing = false;
     }
 
     void GatherStats()
     {
-        // Try to get stats from SimulationEngine
         SimulationEngine engine = FindObjectOfType<SimulationEngine>();
-        
+
         if (engine != null)
         {
             lastEscaped = engine.GetMerchantsExited();
             lastCaptured = engine.GetMerchantsCaptured();
             lastDefeated = engine.GetPiratesDefeated();
             lastTicks = engine.GetTickCount();
+            lastTotalMerchantsSpawned = engine.GetTotalMerchantsSpawned();
+            lastTotalPiratesSpawned = engine.GetTotalPiratesSpawned();
+            lastTotalSecuritySpawned = engine.GetTotalSecuritySpawned();
+            lastPeakActiveShips = engine.GetPeakActiveShips();
+            lastPeakActivePirates = engine.GetPeakActivePirates();
+            lastPeakActiveMerchants = engine.GetPeakActiveMerchants();
+            lastSimHours = engine.GetSimulatedHours();
+            lastSimDays = engine.GetSimulatedDays();
         }
         else
         {
@@ -148,97 +108,105 @@ public class EndOfRunPanel : MonoBehaviour
             lastCaptured = 0;
             lastDefeated = 0;
             lastTicks = 0;
+            lastTotalMerchantsSpawned = 0;
+            lastTotalPiratesSpawned = 0;
+            lastTotalSecuritySpawned = 0;
+            lastPeakActiveShips = 0;
+            lastPeakActivePirates = 0;
+            lastPeakActiveMerchants = 0;
+            lastSimHours = 0;
+            lastSimDays = 0;
         }
 
-        // Calculate protection rate
-        int totalMerchants = lastEscaped + lastCaptured;
-        lastProtectionRate = totalMerchants > 0 ? (float)lastEscaped / totalMerchants * 100f : 100f;
+        // Cache for CSV export
+        CSVExporter.CacheFinalStats();
     }
 
     void UpdateDisplay()
     {
-        // Title
-        if (titleText != null)
-        {
-            titleText.text = "SIMULATION COMPLETE";
-        }
+        if (resultsText == null) return;
 
-        // Hide grade and protection rate completely
-        if (gradeText != null)
-        {
-            gradeText.gameObject.SetActive(false);
-        }
+        // Derived statistics
+        int totalMerchants = lastEscaped + lastCaptured;
+        float protectionRate = totalMerchants > 0 ? (float)lastEscaped / totalMerchants * 100f : 100f;
+        float captureRate = totalMerchants > 0 ? (float)lastCaptured / totalMerchants * 100f : 0f;
+        float capturesPerDay = lastSimDays > 0 ? lastCaptured / lastSimDays : 0f;
+        float defeatsPerDay = lastSimDays > 0 ? lastDefeated / lastSimDays : 0f;
+        float merchantsPerDay = lastSimDays > 0 ? totalMerchants / lastSimDays : 0f;
+        float pirateEfficiency = lastTotalPiratesSpawned > 0 ? (float)lastCaptured / lastTotalPiratesSpawned * 100f : 0f;
+        float navyEfficiency = lastTotalSecuritySpawned > 0 ? (float)lastDefeated / lastTotalSecuritySpawned * 100f : 0f;
 
-        if (protectionRateText != null)
-        {
-            protectionRateText.gameObject.SetActive(false);
-        }
-
-        // Stats
-        if (merchantsEscapedText != null)
-            merchantsEscapedText.text = $"Merchants Escaped: {lastEscaped}";
-
-        if (merchantsCapturedText != null)
-            merchantsCapturedText.text = $"Merchants Captured: {lastCaptured}";
-
-        if (piratesDefeatedText != null)
-            piratesDefeatedText.text = $"Pirates Defeated: {lastDefeated}";
+        int days = Mathf.FloorToInt(lastSimHours / 24f);
+        int hours = Mathf.FloorToInt(lastSimHours % 24f);
 
         // Conditions
-        if (conditionsText != null && EnvironmentSettings.Instance != null)
+        string conditions = "N/A";
+        string detMult = "N/A";
+        string spdMult = "N/A";
+        if (EnvironmentSettings.Instance != null)
         {
-            conditionsText.text = $"Conditions: {EnvironmentSettings.Instance.GetConditionsSummary()}";
+            conditions = EnvironmentSettings.Instance.GetConditionsSummary();
+            detMult = $"{EnvironmentSettings.Instance.DetectionMultiplier:P0}";
+            spdMult = $"{EnvironmentSettings.Instance.SpeedMultiplier:P0}";
         }
 
-        // Duration
-        if (durationText != null)
-        {
-            int days = lastTicks / 1440;  // Assuming 1440 ticks per day
-            int hours = (lastTicks % 1440) / 60;
-            durationText.text = $"Duration: Day {days + 1}, {hours:D2}:00 ({lastTicks} ticks)";
-        }
-    }
+        // Map
+        string mapName = "Unknown";
+        if (MapManager.Instance != null)
+            mapName = MapManager.Instance.GetCurrentMapName();
 
-    string GetGrade(float protectionRate)
-    {
-        if (protectionRate >= 90f) return "A+";
-        if (protectionRate >= 80f) return "A";
-        if (protectionRate >= 70f) return "B";
-        if (protectionRate >= 60f) return "C";
-        if (protectionRate >= 50f) return "D";
-        return "F";
-    }
+        // Build display
+        string text = "";
 
-    Color GetGradeColor(float protectionRate)
-    {
-        if (protectionRate >= 80f) return gradeA;
-        if (protectionRate >= 70f) return gradeB;
-        if (protectionRate >= 60f) return gradeC;
-        if (protectionRate >= 50f) return gradeD;
-        return gradeF;
-    }
+        // Header
+        text += $"<color=#66BB77><b><size=26>SIMULATION COMPLETE</size></b></color>\n\n";
 
-    void OnNewRunClicked()
-    {
-        AudioManager.Instance?.PlaySFX(AudioClipNames.SFX.ButtonClick);
+        // Run Info
+        text += $"<color=#AA8855><b>RUN INFO</b></color>\n";
+        text += $"<color=#AAAAAA>Duration: Day {days}, {hours}h ({lastTicks} ticks)</color>\n";
+        text += $"<color=#AAAAAA>Map: {mapName}</color>\n";
+        text += $"<color=#AAAAAA>Conditions: {conditions}</color>\n";
+        text += $"<color=#AAAAAA>Detection: {detMult} | Speed: {spdMult}</color>\n\n";
 
-        Hide();
-        OnNewRun?.Invoke();
+        // Core Outcomes
+        text += $"<color=#AA8855><b>OUTCOMES</b></color>\n";
+        text += $"<color=#44FF44>Merchants Escaped: {lastEscaped}</color>\n";
+        text += $"<color=#FF4444>Merchants Captured: {lastCaptured}</color>\n";
+        text += $"<color=#44FFFF>Pirates Defeated: {lastDefeated}</color>\n\n";
 
-        AudioManager.Instance?.StopMusic(0.5f);
-        AudioManager.Instance?.PlayMusic("Setup", 1f);
-    }
+        // Rates
+        text += $"<color=#AA8855><b>ANALYSIS</b></color>\n";
+        text += $"<color=#DDDDDD>Protection Rate: {protectionRate:F1}%</color>\n";
+        text += $"<color=#DDDDDD>Capture Rate: {captureRate:F1}%</color>\n";
+        text += $"<color=#DDDDDD>Captures / Day: {capturesPerDay:F1}</color>\n";
+        text += $"<color=#DDDDDD>Defeats / Day: {defeatsPerDay:F1}</color>\n";
+        text += $"<color=#DDDDDD>Merchants / Day: {merchantsPerDay:F1}</color>\n\n";
 
-    void OnCloseClicked()
-    {
-        AudioManager.Instance?.PlaySFX(AudioClipNames.SFX.ButtonClick);
-        Hide();
-        OnClose?.Invoke();
+        // Spawn Totals
+        text += $"<color=#AA8855><b>SPAWN TOTALS</b></color>\n";
+        text += $"<color=#DDDDDD>Total Merchants Spawned: {lastTotalMerchantsSpawned}</color>\n";
+        text += $"<color=#DDDDDD>Total Pirates Spawned: {lastTotalPiratesSpawned}</color>\n";
+        text += $"<color=#DDDDDD>Total Navy Spawned: {lastTotalSecuritySpawned}</color>\n";
+        text += $"<color=#DDDDDD>Total Ships Spawned: {lastTotalMerchantsSpawned + lastTotalPiratesSpawned + lastTotalSecuritySpawned}</color>\n\n";
+
+        // Peaks
+        text += $"<color=#AA8855><b>PEAK ACTIVITY</b></color>\n";
+        text += $"<color=#DDDDDD>Peak Active Ships: {lastPeakActiveShips}</color>\n";
+        text += $"<color=#DDDDDD>Peak Active Merchants: {lastPeakActiveMerchants}</color>\n";
+        text += $"<color=#DDDDDD>Peak Active Pirates: {lastPeakActivePirates}</color>\n\n";
+
+        // Efficiency
+        text += $"<color=#AA8855><b>EFFICIENCY</b></color>\n";
+        text += $"<color=#DDDDDD>Pirate Efficiency: {pirateEfficiency:F1}% (captures per pirate spawned)</color>\n";
+        text += $"<color=#DDDDDD>Navy Efficiency: {navyEfficiency:F1}% (defeats per navy spawned)</color>\n";
+        text += $"<color=#DDDDDD>Total Merchants Processed: {totalMerchants}</color>\n";
+
+        resultsText.text = text;
     }
 
     void CreateEndPanel()
     {
-        // Create canvas
+        // Canvas
         canvasObject = new GameObject("EndOfRunCanvas");
         Canvas canvas = canvasObject.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -268,7 +236,7 @@ public class EndOfRunPanel : MonoBehaviour
         panelObject.transform.SetParent(canvasObject.transform, false);
 
         RectTransform panelRect = panelObject.AddComponent<RectTransform>();
-        panelRect.sizeDelta = new Vector2(380, 400);  // Tall enough for everything
+        panelRect.sizeDelta = new Vector2(450, 750);
         panelRect.anchoredPosition = Vector2.zero;
 
         Image panelBg = panelObject.AddComponent<Image>();
@@ -278,86 +246,103 @@ public class EndOfRunPanel : MonoBehaviour
         outline.effectColor = new Color(0.3f, 0.6f, 0.4f, 1f);
         outline.effectDistance = new Vector2(3, -3);
 
-        // Layout
-        VerticalLayoutGroup layout = panelObject.AddComponent<VerticalLayoutGroup>();
-        layout.padding = new RectOffset(25, 25, 20, 20);
-        layout.spacing = 8;  // Reduced spacing
-        layout.childAlignment = TextAnchor.UpperCenter;
-        layout.childControlHeight = false;
-        layout.childControlWidth = true;
-        layout.childForceExpandHeight = false;
-        layout.childForceExpandWidth = true;
+        // Scroll view
+        GameObject scrollObj = new GameObject("ScrollView");
+        scrollObj.transform.SetParent(panelObject.transform, false);
 
-        // === TITLE ===
-        titleText = CreateText(panelObject.transform, "SIMULATION COMPLETE", 24, FontStyles.Bold, new Color(0.4f, 0.8f, 0.5f));
-        titleText.GetComponent<LayoutElement>().preferredHeight = 35;
+        RectTransform scrollRect = scrollObj.AddComponent<RectTransform>();
+        scrollRect.anchorMin = new Vector2(0, 0);
+        scrollRect.anchorMax = new Vector2(1, 1);
+        scrollRect.offsetMin = new Vector2(10, 70);
+        scrollRect.offsetMax = new Vector2(-10, -10);
 
-        // === STATS ===
-        merchantsEscapedText = CreateText(panelObject.transform, "Merchants Escaped: 0", 20, FontStyles.Normal, new Color(0.3f, 0.9f, 0.4f));
-        merchantsEscapedText.GetComponent<LayoutElement>().preferredHeight = 28;
+        ScrollRect sr = scrollObj.AddComponent<ScrollRect>();
+        sr.horizontal = false;
+        sr.vertical = true;
+        sr.scrollSensitivity = 25f;
+        sr.movementType = ScrollRect.MovementType.Clamped;
 
-        merchantsCapturedText = CreateText(panelObject.transform, "Merchants Captured: 0", 20, FontStyles.Normal, new Color(0.9f, 0.4f, 0.3f));
-        merchantsCapturedText.GetComponent<LayoutElement>().preferredHeight = 28;
+        Image scrollBg = scrollObj.AddComponent<Image>();
+        scrollBg.color = new Color(0, 0, 0, 0);
 
-        piratesDefeatedText = CreateText(panelObject.transform, "Pirates Defeated: 0", 20, FontStyles.Normal, new Color(0.4f, 0.6f, 0.9f));
-        piratesDefeatedText.GetComponent<LayoutElement>().preferredHeight = 28;
+        RectMask2D mask = scrollObj.AddComponent<RectMask2D>();
 
-        // === CONDITIONS & DURATION ===
-        conditionsText = CreateText(panelObject.transform, "Conditions: Morning, Clear", 14, FontStyles.Italic, new Color(0.7f, 0.7f, 0.7f));
-        conditionsText.GetComponent<LayoutElement>().preferredHeight = 20;
+        // Content
+        GameObject contentObj = new GameObject("Content");
+        contentObj.transform.SetParent(scrollObj.transform, false);
 
-        durationText = CreateText(panelObject.transform, "Duration: Day 1, 06:00 (360 ticks)", 14, FontStyles.Italic, new Color(0.7f, 0.7f, 0.7f));
-        durationText.GetComponent<LayoutElement>().preferredHeight = 20;
+        RectTransform contentRect = contentObj.AddComponent<RectTransform>();
+        contentRect.anchorMin = new Vector2(0, 1);
+        contentRect.anchorMax = new Vector2(1, 1);
+        contentRect.pivot = new Vector2(0.5f, 1);
+        contentRect.anchoredPosition = Vector2.zero;
+        contentRect.sizeDelta = new Vector2(0, 0);
 
-        // === BUTTONS ===
-        // Export button
-        exportButton = CreateSimpleButton(panelObject.transform, "Export CSV", new Color(0.3f, 0.4f, 0.6f, 1f), OnExportClicked);
+        ContentSizeFitter fitter = contentObj.AddComponent<ContentSizeFitter>();
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        sr.content = contentRect;
+        sr.viewport = scrollRect;
+
+        // Results text
+        GameObject textObj = new GameObject("ResultsText");
+        textObj.transform.SetParent(contentObj.transform, false);
+
+        RectTransform textRect = textObj.AddComponent<RectTransform>();
+        textRect.anchorMin = new Vector2(0, 1);
+        textRect.anchorMax = new Vector2(1, 1);
+        textRect.pivot = new Vector2(0.5f, 1);
+        textRect.anchoredPosition = Vector2.zero;
+        textRect.sizeDelta = new Vector2(-20, 0);
+
+        resultsText = textObj.AddComponent<TextMeshProUGUI>();
+        resultsText.fontSize = 16;
+        resultsText.color = Color.white;
+        resultsText.alignment = TextAlignmentOptions.TopLeft;
+        resultsText.enableWordWrapping = true;
+        resultsText.richText = true;
+        resultsText.lineSpacing = 3;
+
+        ContentSizeFitter textFitter = textObj.AddComponent<ContentSizeFitter>();
+        textFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        // Button row at the bottom
+        GameObject buttonRow = new GameObject("ButtonRow");
+        buttonRow.transform.SetParent(panelObject.transform, false);
+
+        RectTransform buttonRowRect = buttonRow.AddComponent<RectTransform>();
+        buttonRowRect.anchorMin = new Vector2(0, 0);
+        buttonRowRect.anchorMax = new Vector2(1, 0);
+        buttonRowRect.pivot = new Vector2(0.5f, 0);
+        buttonRowRect.anchoredPosition = new Vector2(0, 10);
+        buttonRowRect.sizeDelta = new Vector2(-20, 50);
+
+        HorizontalLayoutGroup buttonLayout = buttonRow.AddComponent<HorizontalLayoutGroup>();
+        buttonLayout.spacing = 8;
+        buttonLayout.childControlWidth = true;
+        buttonLayout.childControlHeight = true;
+        buttonLayout.childForceExpandWidth = true;
+        buttonLayout.childForceExpandHeight = true;
+
+        // Export CSV button
+        CreateButton(buttonRow.transform, "Export CSV", new Color(0.3f, 0.4f, 0.6f), OnExportClicked);
 
         // New Run button
-        newRunButton = CreateSimpleButton(panelObject.transform, "New Run", new Color(0.2f, 0.55f, 0.3f, 1f), OnNewRunClicked);
-
-        // Close button  
-        closeButton = CreateSimpleButton(panelObject.transform, "Close", new Color(0.45f, 0.45f, 0.5f, 1f), OnCloseClicked);
+        CreateButton(buttonRow.transform, "New Run", new Color(0.2f, 0.55f, 0.3f), OnNewRunClicked);
     }
 
-    void OnExportClicked()
+    void CreateButton(Transform parent, string label, Color color, UnityEngine.Events.UnityAction onClick)
     {
-        if (CSVExporter.Instance != null)
-        {
-            CSVExporter.Instance.ExportResults();
-        }
-        else
-        {
-            // Try to find it
-            var exporter = FindObjectOfType<CSVExporter>();
-            if (exporter != null)
-            {
-                exporter.ExportResults();
-            }
-            else
-            {
-                Debug.LogWarning("CSVExporter not found in scene. Add CSVExporter component to export results.");
-            }
-        }
-    }
-
-    Button CreateSimpleButton(Transform parent, string text, Color bgColor, UnityEngine.Events.UnityAction onClick)
-    {
-        GameObject btnObj = new GameObject($"Button_{text}");
+        GameObject btnObj = new GameObject($"Btn_{label}");
         btnObj.transform.SetParent(parent, false);
 
-        Image btnImage = btnObj.AddComponent<Image>();
-        btnImage.color = bgColor;
+        Image btnImg = btnObj.AddComponent<Image>();
+        btnImg.color = color;
 
         Button btn = btnObj.AddComponent<Button>();
-        btn.targetGraphic = btnImage;
+        btn.targetGraphic = btnImg;
         btn.onClick.AddListener(onClick);
 
-        LayoutElement le = btnObj.AddComponent<LayoutElement>();
-        le.preferredHeight = 38;
-        le.preferredWidth = 180;
-
-        // Text
         GameObject textObj = new GameObject("Text");
         textObj.transform.SetParent(btnObj.transform, false);
 
@@ -367,44 +352,37 @@ public class EndOfRunPanel : MonoBehaviour
         textRect.offsetMin = Vector2.zero;
         textRect.offsetMax = Vector2.zero;
 
-        TextMeshProUGUI btnText = textObj.AddComponent<TextMeshProUGUI>();
-        btnText.text = text;
-        btnText.fontSize = 20;
+        TMP_Text btnText = textObj.AddComponent<TextMeshProUGUI>();
+        btnText.text = label;
+        btnText.fontSize = 16;
         btnText.fontStyle = FontStyles.Bold;
         btnText.color = Color.white;
         btnText.alignment = TextAlignmentOptions.Center;
-
-        return btn;
     }
 
-    TextMeshProUGUI CreateText(Transform parent, string text, int fontSize, FontStyles style, Color color)
+    void OnExportClicked()
     {
-        GameObject textObj = new GameObject("Text");
-        textObj.transform.SetParent(parent, false);
-
-        TextMeshProUGUI tmp = textObj.AddComponent<TextMeshProUGUI>();
-        tmp.text = text;
-        tmp.fontSize = fontSize;
-        tmp.fontStyle = style;
-        tmp.color = color;
-        tmp.alignment = TextAlignmentOptions.Center;
-
-        LayoutElement le = textObj.AddComponent<LayoutElement>();
-        le.preferredHeight = fontSize + 10;
-
-        return tmp;
+        if (CSVExporter.Instance != null)
+            CSVExporter.Instance.ExportResults();
+        else
+        {
+            var exporter = FindObjectOfType<CSVExporter>();
+            if (exporter != null)
+                exporter.ExportResults();
+            else
+                Debug.LogWarning("CSVExporter not found in scene.");
+        }
     }
 
-    void CreateDivider(Transform parent)
+    void OnNewRunClicked()
     {
-        // Not used anymore
+        Hide();
+        OnNewRun?.Invoke();
     }
 
-    void CreateSpacer(Transform parent, float height)
+    void OnCloseClicked()
     {
-        GameObject spacer = new GameObject("Spacer");
-        spacer.transform.SetParent(parent, false);
-        LayoutElement le = spacer.AddComponent<LayoutElement>();
-        le.preferredHeight = height;
+        Hide();
+        OnClose?.Invoke();
     }
 }

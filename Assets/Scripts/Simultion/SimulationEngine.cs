@@ -66,7 +66,20 @@ public class SimulationEngine : MonoBehaviour
     private int ticksSinceLastMerchant = 0;
     private int ticksSinceLastPirate = 0;
     private int ticksSinceLastSecurity = 0;
-
+    private int totalMerchantsSpawned = 0;
+    private int totalPiratesSpawned = 0;
+    private int totalSecuritySpawned = 0;
+    private int totalEncounters = 0;        // pirate entered chase state
+    private int totalDistressCalls = 0;     // merchant broadcast distress
+    private int peakActiveShips = 0;
+    private int peakActivePirates = 0;
+    private int peakActiveMerchants = 0;
+    private int missilesFired = 0;
+    private int missileKills = 0;
+    private float originalMerchantSpeed;
+    private float originalPirateSpeed;
+    private float originalSecuritySpeed;
+    private bool hasOriginalSpeeds = false;
     // Statistics
     private int merchantsExited = 0;
     private int merchantsCaptured = 0;
@@ -145,6 +158,16 @@ public class SimulationEngine : MonoBehaviour
         merchantsCaptured = 0;
         piratesDefeated = 0;
         countedShipIds.Clear();
+        totalMerchantsSpawned = 0;
+        totalPiratesSpawned = 0;
+        totalSecuritySpawned = 0;
+        totalEncounters = 0;
+        totalDistressCalls = 0;
+        peakActiveShips = 0;
+        peakActivePirates = 0;
+        peakActiveMerchants = 0;
+        missilesFired = 0;
+        missileKills = 0;
 
         foreach (var ship in ships)
         {
@@ -258,12 +281,20 @@ public class SimulationEngine : MonoBehaviour
         Debug.Log($"Adjusted spawn intervals - Merchant: {adjustedMerchantInterval}, Pirate: {adjustedPirateInterval}, Security: {adjustedSecurityInterval}");
 
         if (shipSpawner != null && EnvironmentSettings.Instance != null)
+    {
+        if (!hasOriginalSpeeds)
         {
-            float speedMult = EnvironmentSettings.Instance.SpeedMultiplier;
-            shipSpawner.merchantSpeed *= speedMult;
-            shipSpawner.pirateSpeed *= speedMult;
-            shipSpawner.securitySpeed *= speedMult;
+            originalMerchantSpeed = shipSpawner.merchantSpeed;
+            originalPirateSpeed = shipSpawner.pirateSpeed;
+            originalSecuritySpeed = shipSpawner.securitySpeed;
+            hasOriginalSpeeds = true;
         }
+
+        float speedMult = EnvironmentSettings.Instance.SpeedMultiplier;
+        shipSpawner.merchantSpeed = originalMerchantSpeed * speedMult;
+        shipSpawner.pirateSpeed = originalPirateSpeed * speedMult;
+        shipSpawner.securitySpeed = originalSecuritySpeed * speedMult;
+    }
     }
 
     // ===== PUBLIC GETTERS =====
@@ -278,6 +309,12 @@ public class SimulationEngine : MonoBehaviour
     public List<ShipController> GetActiveShips() => ships;
     public float GetSpeedMultiplier() => speedMultiplier;
     public int GetTicksLastFrame() => lastFrameTickCount;
+    public int GetTotalMerchantsSpawned() => totalMerchantsSpawned;
+    public int GetTotalPiratesSpawned() => totalPiratesSpawned;
+    public int GetTotalSecuritySpawned() => totalSecuritySpawned;
+    public int GetPeakActiveShips() => peakActiveShips;
+    public int GetPeakActivePirates() => peakActivePirates;
+    public int GetPeakActiveMerchants() => peakActiveMerchants;
 
     public float GetSimulatedHours()
     {
@@ -323,6 +360,13 @@ public class SimulationEngine : MonoBehaviour
         if (ship != null)
         {
             ships.Add(ship);
+
+            switch (type)
+            {
+                case ShipType.Cargo: totalMerchantsSpawned++; break;
+                case ShipType.Pirate: totalPiratesSpawned++; break;
+                case ShipType.Security: totalSecuritySpawned++; break;
+            }
 
             if (EnvironmentSettings.Instance != null)
             {
@@ -381,6 +425,18 @@ public class SimulationEngine : MonoBehaviour
             if (ship.Data != null)
                 HandleShipState(ship, i);
         }
+        // Track peaks
+        int currentTotal = ships.Count;
+        if (currentTotal > peakActiveShips) peakActiveShips = currentTotal;
+        int currentPirates = 0, currentMerchants = 0;
+        foreach (var s in ships)
+        {
+            if (s == null || s.Data == null) continue;
+            if (s.Data.type == ShipType.Pirate) currentPirates++;
+            if (s.Data.type == ShipType.Cargo) currentMerchants++;
+        }
+        if (currentPirates > peakActivePirates) peakActivePirates = currentPirates;
+        if (currentMerchants > peakActiveMerchants) peakActiveMerchants = currentMerchants;
     }
 
     private void HandleShipState(ShipController ship, int index)
