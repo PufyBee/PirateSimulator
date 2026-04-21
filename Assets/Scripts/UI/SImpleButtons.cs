@@ -303,6 +303,10 @@ public class SimpleButtons : MonoBehaviour
         if (coastalDefenseManager != null)
             coastalDefenseManager.Lock();
 
+        // Hide route weight panel during simulation
+        if (RouteWeightPanel.Instance != null)
+            RouteWeightPanel.Instance.Hide();
+
         SetRuntimeUIState(true);
 
         if (engine) engine.StartRun();
@@ -435,6 +439,14 @@ public class SimpleButtons : MonoBehaviour
         if (coastalDefenseManager != null)
             coastalDefenseManager.Unlock();
 
+        // Restore route weights and show panel
+        if (RouteWeightPanel.Instance != null)
+        {
+            RouteWeightPanel.Instance.RestoreOriginalWeights();
+            RouteWeightPanel.Instance.RefreshForCurrentMap();
+            RouteWeightPanel.Instance.Show();
+        }
+
         SetRuntimeUIState(false);
 
         if (setupPanel) setupPanel.SetActive(true);
@@ -505,7 +517,11 @@ public class SimpleButtons : MonoBehaviour
                 spawnZoneConfigurator.gameObject.SetActive(true);
                 spawnZoneConfigurator.ShowForSetup();
             }
+            
         }
+                // Refresh route weight sliders for new map
+        if (RouteWeightPanel.Instance != null)
+            RouteWeightPanel.Instance.RefreshForCurrentMap();
     }
 
     string GetTimeOfDayName(int index)
@@ -711,12 +727,15 @@ public class SimpleButtons : MonoBehaviour
             }
         }
 
-        // Calculate time of day from sim hours + start hour
+        int displayTicks = Mathf.Max(0, engine.GetTickCount() - 1);
+        int day = (displayTicks / 96);
+        if (engine.maxTicks > 0 && engine.GetTickCount() >= engine.maxTicks)
+            day = engine.maxTicks / 96;
+
         float totalHours = startHour + simHours;
-        int day = 1 + Mathf.FloorToInt(totalHours / 24f);
         int hours = Mathf.FloorToInt(totalHours) % 24;
         int minutes = Mathf.FloorToInt((totalHours - Mathf.Floor(totalHours)) * 60f);
-
+        Debug.Log($"ticks={ticks}, simHours={simHours}, day={day}, maxTicks={engine.maxTicks}, maxDays={engine.maxTicks/96}");
         // Show effective ticks per second for performance monitoring
         float effectiveTps = engine.GetEffectiveTicksPerSecond();
 
@@ -727,7 +746,7 @@ public class SimpleButtons : MonoBehaviour
 
     private const int MAX_INITIAL_SHIPS = 50;
     private const int MAX_TOTAL_SHIPS = 100;
-    private const int MAX_DURATION = 100000;
+    private const int MAX_DURATION = 24000;
     private const int SPAWN_RATE_BASE = 300;
 
     void ApplySettingsFromInputs()
@@ -759,7 +778,8 @@ public class SimpleButtons : MonoBehaviour
         engine.pirateSpawnInterval = ConvertRateToInterval(pirateRate);
         engine.securitySpawnInterval = ConvertRateToInterval(securityRate);
 
-        engine.maxTicks = ParseIntClamped(durationInput, 0, 0, MAX_DURATION);
+        int durationDays = ParseIntClamped(durationInput, 0, 0, 250);
+        engine.maxTicks = durationDays * 96; // 1 day = 96 ticks (15 min/tick)
         engine.runSeed = ParseInt(seedInput, 12345);
 
         Debug.Log($"=== SETTINGS APPLIED ===");
@@ -796,11 +816,11 @@ public class SimpleButtons : MonoBehaviour
         if (clamped != result)
         {
             input.text = clamped.ToString();
-            ToastNotification.Show($"Value capped at {clamped} (max {max})");
+            ToastNotification.Show($"Value adjusted to {clamped}. Allowed range: {min} - {max}");
         }
         return clamped;
     }
-    ToastNotification.Show($"Input clamped to default value {defaultValue}");
+    ToastNotification.Show($"Invalid input. Using default value: {defaultValue}");
     return defaultValue;
 }
 
