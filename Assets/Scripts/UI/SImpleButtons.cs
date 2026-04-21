@@ -764,6 +764,7 @@ public class SimpleButtons : MonoBehaviour
             merchants = Mathf.FloorToInt(merchants * scale);
             pirates = Mathf.FloorToInt(pirates * scale);
             security = Mathf.FloorToInt(security * scale);
+            ToastNotification.Show($"Total ships scaled to {MAX_TOTAL_SHIPS} max ({merchants}M / {pirates}P / {security}S)");
         }
 
         engine.initialMerchants = merchants;
